@@ -151,34 +151,76 @@ const KEY_MAP = {
   'Backspace':  { key: 'Backspace',  code: 'Backspace',  keyCode: 8 }
 };
 
+// =========================================================================
+// Sistema de Salvamento Robusto e Redundante (IndexedDB + LocalStorage)
+// Garante 100% de persistência em celulares Android, iOS, PWA e PCs
+// =========================================================================
+
+function persistAllSaves(toastMessage = null) {
+  if (!zeldaModule || !zeldaModule.FS) return;
+  try {
+    // 1. Sincroniza assincronamente com o banco IndexedDB (/saves)
+    zeldaModule.FS.syncfs(false, (err) => {
+      if (err) console.warn('[Save] Aviso no syncfs IDBFS:', err);
+      else console.log('[Save] Saves sincronizados no IndexedDB com sucesso.');
+    });
+
+    // 2. Backup síncrono e imediato no localStorage (à prova de fechamento súbito no Android)
+    const filesToBackup = ['/saves/sram.dat', '/saves/save0.sav', '/saves/save1.sav'];
+    for (const filePath of filesToBackup) {
+      if (zeldaModule.FS.analyzePath(filePath).exists) {
+        const bytes = zeldaModule.FS.readFile(filePath);
+        if (bytes && bytes.length > 0) {
+          const key = 'zelda_backup_' + filePath.replace('/saves/', '');
+          let binary = '';
+          const len = bytes.byteLength;
+          for (let i = 0; i < len; i++) {
+            binary += String.fromCharCode(bytes[i]);
+          }
+          localStorage.setItem(key, btoa(binary));
+        }
+      }
+    }
+    if (toastMessage) showToast(toastMessage);
+  } catch (e) {
+    console.warn('[Save] Exceção ao persistir dados:', e);
+    if (toastMessage) showToast(toastMessage);
+  }
+}
+
 function executeQuickSave() {
   if (!zeldaModule) return;
 
-  // Dispara a tecla F2 (configurada como Save no KeyMap) e ShiftLeft + F1
-  simulateKeyEvent('keydown', 'F2');
-  simulateKeyEvent('keydown', 'ShiftLeft');
+  // Dispara ShiftLeft + F1 e F2 no motor nativo
+  simulateKeyEvent('keydown', 'ShiftLeft', { shiftKey: true });
   simulateKeyEvent('keydown', 'F1', { shiftKey: true });
+  simulateKeyEvent('keydown', 'F2');
 
   setTimeout(() => {
     simulateKeyEvent('keyup', 'F2');
     simulateKeyEvent('keyup', 'F1', { shiftKey: true });
     simulateKeyEvent('keyup', 'ShiftLeft');
-  }, 120);
+  }, 150);
 
-  // Persiste imediatamente no IndexedDB após o motor gravar o estado
+  // Aguarda o motor gravar o estado e persiste no IndexedDB + LocalStorage
   setTimeout(() => {
-    if (zeldaModule && zeldaModule.FS) {
-      zeldaModule.FS.syncfs(false, (err) => {
-        if (err) console.warn('[Save State] Erro ao gravar no IndexedDB:', err);
-        else console.log('[Save State] Estado rápido gravado com sucesso no IndexedDB!');
-      });
-    }
-    showToast('💾 Estado Rápido Salvo no Navegador!');
-  }, 300);
+    persistAllSaves('💾 Estado Rápido Salvo no Navegador!');
+  }, 350);
 }
 
 function executeQuickLoad() {
   if (!zeldaModule) return;
+
+  // Garante que se o save0.sav estiver no localStorage e não no FS, seja restaurado
+  try {
+    const localData = localStorage.getItem('zelda_backup_save0.sav');
+    if (localData && !zeldaModule.FS.analyzePath('/saves/save0.sav').exists) {
+      const binary = atob(localData);
+      const bytes = new Uint8Array(binary.length);
+      for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+      zeldaModule.FS.writeFile('/saves/save0.sav', bytes);
+    }
+  } catch (e) {}
 
   // Dispara F1 (configurado como Load no KeyMap)
   simulateKeyEvent('keydown', 'F1');
@@ -190,6 +232,10 @@ function executeQuickLoad() {
 
 // Redireciona teclas físicas com captura global (Hotkeys F1/F2, Botão R e WASD)
 window.addEventListener('keydown', (e) => {
+  // CRUCIAL: Ignora eventos sintéticos disparados por simulateKeyEvent
+  // Permite que o motor WebAssembly receba F1, F2 e Shift sem que sejam bloqueados!
+  if (!e.isTrusted) return;
+
   // Salvar Estado Rápido físico: F2 ou Shift+F1
   if (e.code === 'F2' || (e.code === 'F1' && e.shiftKey)) {
     e.preventDefault();
@@ -222,6 +268,8 @@ window.addEventListener('keydown', (e) => {
 }, true);
 
 window.addEventListener('keyup', (e) => {
+  if (!e.isTrusted) return;
+
   if (e.code === 'F1' || e.code === 'F2') {
     e.preventDefault();
     e.stopPropagation();
@@ -370,66 +418,42 @@ async function bootGame(assetBytes) {
 
     await new Promise((res) => {
       mod.FS.syncfs(true, (err) => {
-        if (err) console.warn('Aviso ao carregar saves:', err);
+        if (err) console.warn('Aviso ao carregar saves do IDBFS:', err);
         res();
       });
     });
 
+    // Restauração de redundância do localStorage (se o IndexedDB estiver vazio no celular)
+    try {
+      const backupKeys = ['sram.dat', 'save0.sav', 'save1.sav'];
+      for (const filename of backupKeys) {
+        const filePath = `/saves/${filename}`;
+        const existsInFS = mod.FS.analyzePath(filePath).exists;
+        const localData = localStorage.getItem('zelda_backup_' + filename);
+        if (!existsInFS && localData) {
+          const binary = atob(localData);
+          const bytes = new Uint8Array(binary.length);
+          for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
+          mod.FS.writeFile(filePath, bytes);
+          console.log('[Save] Restaurado do backup do localStorage:', filePath, bytes.length, 'bytes');
+        }
+      }
+    } catch (e) {
+      console.warn('[Save] Aviso ao restaurar backup do localStorage:', e);
+    }
+
     preloadChapters(mod);
 
-    // Sincronização Periódica e Automática com o IndexedDB do Navegador
-    let lastSaveMtime = 0;
-    let isSyncing = false;
+    // Auto-sync periódico suave a cada 2 segundos no IndexedDB e LocalStorage
+    setInterval(() => persistAllSaves(), 2000);
 
-    const syncSaveToIndexedDB = (force = false) => {
-      if (!mod || !mod.FS || isSyncing) return;
-      try {
-        let hasChanges = force;
-        if (!hasChanges) {
-          const filesToCheck = [
-            '/saves/sram.dat',
-            '/saves/save0.sav',
-            '/saves/save1.sav',
-            '/saves/save2.sav',
-            '/saves/save3.sav',
-            '/saves/save4.sav',
-            '/saves/save5.sav'
-          ];
-          for (const p of filesToCheck) {
-            if (mod.FS.analyzePath(p).exists) {
-              const st = mod.FS.stat(p);
-              const mtime = st.mtime instanceof Date ? st.mtime.getTime() : Number(st.mtime);
-              if (mtime > lastSaveMtime) {
-                lastSaveMtime = mtime;
-                hasChanges = true;
-                break;
-              }
-            }
-          }
-        }
-        if (hasChanges) {
-          isSyncing = true;
-          mod.FS.syncfs(false, (err) => {
-            isSyncing = false;
-            if (err) console.warn('[Zelda Web] Erro ao sincronizar saves no IndexedDB:', err);
-            else console.log('[Zelda Web] Todos os saves e estados persistidos no IndexedDB com sucesso.');
-          });
-        }
-      } catch (e) {
-        isSyncing = false;
-      }
-    };
-
-    // Auto-sync suave a cada 1.5 segundos
-    setInterval(() => syncSaveToIndexedDB(false), 1500);
-
-    // Sincronizar imediatamente ao ocultar a aba, alternar app no Android ou fechar
+    // Sincronizar imediatamente ao alternar aba, minimizar app no celular ou fechar
     document.addEventListener('visibilitychange', () => {
-      if (document.visibilityState === 'hidden') syncSaveToIndexedDB(true);
+      if (document.visibilityState === 'hidden') persistAllSaves();
     });
-    window.addEventListener('pagehide', () => syncSaveToIndexedDB(true));
-    window.addEventListener('beforeunload', () => syncSaveToIndexedDB(true));
-    window.addEventListener('blur', () => syncSaveToIndexedDB(false));
+    window.addEventListener('pagehide', () => persistAllSaves());
+    window.addEventListener('beforeunload', () => persistAllSaves());
+    window.addEventListener('blur', () => persistAllSaves());
 
     mod.callMain(['--config', '/zelda3.ini']);
     canvas.focus();
@@ -675,6 +699,11 @@ function initGameMenu() {
       try {
         if (zeldaModule) {
           try { zeldaModule.FS.unlink('/saves/sram.dat'); } catch (e) {}
+          try {
+            localStorage.removeItem('zelda_backup_sram.dat');
+            localStorage.removeItem('zelda_backup_save0.sav');
+            localStorage.removeItem('zelda_backup_save1.sav');
+          } catch (e) {}
           zeldaModule.FS.syncfs(false, () => {
             indexedDB.deleteDatabase('/saves');
             location.reload();
