@@ -41,14 +41,13 @@ html, body {
   overflow: hidden;
 }
 
-/* Base Canvas Sizing - Widescreen 16:9 nativo sem distorcer pixels */
+/* Base Canvas Sizing - Estica e preenche toda a tela no Android Landscape (Anexo 2) */
 canvas#canvas {
-  width: min(100vw, calc(100vh * 16 / 9)) !important;
-  height: min(100vh, calc(100vw * 9 / 16)) !important;
+  width: 100vw !important;
+  height: 100vh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
-  aspect-ratio: 16 / 9 !important;
-  object-fit: contain !important;
+  object-fit: fill !important;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
   display: block;
@@ -56,30 +55,30 @@ canvas#canvas {
   transition: width 0.15s ease, height 0.15s ease;
 }
 
-/* Proporções da Tela Configuradas via Menu (Desktop e Modo Paisagem) */
-canvas#canvas.aspect-16-9 {
-  width: min(100vw, calc(100vh * 16 / 9)) !important;
-  height: min(100vh, calc(100vw * 9 / 16)) !important;
+/* Proporções da Tela Configuradas via Menu */
+canvas#canvas.aspect-16-9,
+canvas#canvas.aspect-fill {
+  width: 100vw !important;
+  height: 100vh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
-  aspect-ratio: 16 / 9 !important;
-  object-fit: contain !important;
+  object-fit: fill !important;
 }
 
 canvas#canvas.aspect-4-3 {
   width: min(100vw, calc(100vh * 4 / 3)) !important;
-  height: min(100vh, calc(100vw * 3 / 4)) !important;
+  height: 100vh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
-  object-fit: contain !important;
+  object-fit: fill !important;
 }
 
 canvas#canvas.aspect-16-10 {
   width: min(100vw, calc(100vh * 16 / 10)) !important;
-  height: min(100vh, calc(100vw * 10 / 16)) !important;
+  height: 100vh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
-  object-fit: contain !important;
+  object-fit: fill !important;
 }
 
 canvas#canvas.aspect-18-9 {
@@ -87,15 +86,16 @@ canvas#canvas.aspect-18-9 {
   height: min(100vh, calc(100vw * 9 / 18)) !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
-  object-fit: contain !important;
+  object-fit: fill !important;
 }
 
-canvas#canvas.aspect-fill {
-  width: 100vw !important;
-  height: 100vh !important;
-  max-width: 100vw !important;
-  max-height: 100vh !important;
-  object-fit: contain !important;
+@media (min-width: 1024px) and (min-height: 650px) {
+  /* Em monitores grandes de Desktop, manter 16:9 contido caso selecionado */
+  canvas#canvas.aspect-16-9 {
+    width: min(100vw, calc(100vh * 16 / 9)) !important;
+    height: min(100vh, calc(100vw * 9 / 16)) !important;
+    object-fit: contain !important;
+  }
 }
 
 /* ==========================================================
@@ -849,6 +849,18 @@ canvas.filter-omniscale {
    Layout Deitado / Celular em Landscape (Modo Tradicional)
    ========================================================== */
 @media (orientation: landscape) {
+  /* No Android Deitado / Landscape, estica e preenche toda a tela (100vw x 100vh) sem barras pretas laterais (idêntico ao Anexo 2) */
+  canvas#canvas,
+  canvas#canvas.aspect-16-9,
+  canvas#canvas.aspect-fill {
+    width: 100vw !important;
+    height: 100vh !important;
+    max-width: 100vw !important;
+    max-height: 100vh !important;
+    aspect-ratio: unset !important;
+    object-fit: fill !important;
+  }
+
   #touch-controls {
     display: block;
   }
