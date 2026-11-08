@@ -281,7 +281,7 @@ async function bootGame(assetBytes) {
 
     preloadChapters(mod);
 
-        // Sincronização Periódica e Automática com o IndexedDB do Navegador
+    // Sincronização Periódica e Automática com o IndexedDB do Navegador
     let lastSaveMtime = 0;
     let isSyncing = false;
 
@@ -307,7 +307,7 @@ async function bootGame(assetBytes) {
       }
     };
 
-    // Auto-sync suave a cada 2 segundos se o motor do jogo tiver modificado o save
+    // Auto-sync a cada 2 segundos se o motor do jogo tiver modificado o save
     setInterval(() => syncSaveToIndexedDB(false), 2000);
 
     // Sincronizar imediatamente ao ocultar a aba, alternar app no Android ou fechar
@@ -514,21 +514,16 @@ function initGameMenu() {
     try {
       const savePath = '/saves/sram.dat';
       if (!zeldaModule.FS.analyzePath(savePath).exists) {
-        alert('Nenhum progresso gravado ainda dentro do jogo. Comece um jogo e salve primeiro!');
+        alert('Nenhum progresso gravado ainda dentro do jogo.');
         return;
       }
-      // Garante sincronização antes de exportar
-      zeldaModule.FS.syncfs(false, () => {});
-
       const data = zeldaModule.FS.readFile(savePath);
       const blob = new Blob([data], { type: 'application/octet-stream' });
       const url = URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
       a.download = 'zelda-web-br.sav';
-      document.body.appendChild(a);
       a.click();
-      document.body.removeChild(a);
       URL.revokeObjectURL(url);
     } catch (e) {
       alert('Erro ao exportar save: ' + e.message);
@@ -536,35 +531,344 @@ function initGameMenu() {
   });
 
   const fileSaveInput = el('file-save-input');
-  el('opt-upload-srm')?.addEventListener('click', () => {
-    if (fileSaveInput) {
-      fileSaveInput.value = '';
-      fileSaveInput.click();
-    }
-  });
-
+  el('opt-upload-srm')?.addEventListener('click', () => fileSaveInput?.click());
   fileSaveInput?.addEventListener('change', async (e) => {
     const file = e.target.files[0];
     if (!file || !zeldaModule) return;
     try {
       const buffer = await file.arrayBuffer();
-      const saveBytes = new Uint8Array(buffer);
-      if (saveBytes.length < 512) {
-        alert('O arquivo selecionado é inválido ou está vazio.');
-        return;
-      }
-      zeldaModule.FS.writeFile('/saves/sram.dat', saveBytes);
+      zeldaModule.FS.writeFile('/saves/sram.dat', new Uint8Array(buffer));
       zeldaModule.FS.syncfs(false, (err) => {
         if (err) {
           alert('Erro ao persistir save no navegador: ' + err.message);
         } else {
-          alert('Save (.sav) restaurado com sucesso! O jogo será recarregado.');
+          alert('Save (.sav) restaurado com sucesso! A página será recarregada.');
           location.reload();
         }
       });
     } catch (err) {
       alert('Erro ao carregar save: ' + err.message);
     }
+  });
+
+  el('opt-clean-reset')?.addEventListener('click', () => {
+    if (confirm('Deseja iniciar um novo jogo limpo em Português? Isso apagará o save anterior salvo no navegador.')) {
+      try {
+        if (zeldaModule) {
+          try { zeldaModule.FS.unlink('/saves/sram.dat'); } catch (e) {}
+          zeldaModule.FS.syncfs(false, () => {
+            indexedDB.deleteDatabase('/saves');
+            location.reload();
+          });
+        } else {
+          indexedDB.deleteDatabase('/saves');
+          location.reload();
+        }
+      } catch (e) {
+        location.reload();
+      }
+    }
+  });
+
+  // Tela Cheia
+  el('btn-fullscreen')?.addEventListener('click', () => {
+    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
+      const docEl = document.documentElement;
+      if (docEl.requestFullscreen) docEl.requestFullscreen();
+      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
+    } else {
+      if (document.exitFullscreen) document.exitFullscreen();
+      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+    }
+  });
+
+  // Alternar Controles
+  const touchControls = el('touch-controls');
+  el('btn-toggle-controls')?.addEventListener('click', () => {
+    touchControls.style.display = touchControls.style.display === 'none' ? 'block' : 'none';
+  });
+}
+
+// Renderiza a lista de 13 capítulos com o mesmo design elegante
+function renderChapters() {
+  const container = el('game-chapters-list');
+  if (!container || !chaptersData.length) return;
+
+  container.innerHTML = '';
+  chaptersData.forEach((chap, idx) => {
+    const opt = document.createElement('div');
+    opt.className = `game-option ${idx === 0 ? 'active' : ''}`;
+    opt.innerHTML = `
+      <span class="radio-indicator"></span>
+      <span class="option-label">${chap.name}</span>
+    `;
+
+    opt.addEventListener('click', () => {
+      document.querySelectorAll('#game-chapters-list .game-option').forEach(o => o.classList.remove('active'));
+      opt.classList.add('active');
+      loadChapter(chap);
+    });
+
+    container.appendChild(opt);
+  });
+}
+
+async function loadChapter(chap) {
+  if (!zeldaModule) return;
+  try {
+    const refPath = `/saves/ref/${chap.file}`;
+    let chapterBytes = null;
+
+    try {
+      chapterBytes = zeldaModule.FS.readFile(refPath);
+    } catch (e) {
+      const res = await fetch(`saves/ref/${encodeURIComponent(chap.file)}`);
+      if (res.ok) {
+        chapterBytes = new Uint8Array(await res.arrayBuffer());
+        zeldaModule.FS.writeFile(refPath, chapterBytes);
+      }
+    }
+
+    if (!chapterBytes) {
+      alert('Arquivo de capítulo indisponível.');
+      return;
+    }
+
+    // Aciona a tecla de LoadRef correspondente ao capítulo
+    simulateKeyEvent('keydown', chap.key);
+    setTimeout(() => simulateKeyEvent('keyup', chap.key), 120);
+    canvas.focus();
+  } catch (err) {
+    alert('Erro ao carregar capítulo: ' + err.message);
+  }
+}
+
+// =========================================================================
+// Controles de Toque (Otimizados para Celular/Tablet)
+// =========================================================================
+
+function initTouchControls() {
+  const activeKeys = new Set();
+
+  function pressKey(key) {
+    if (!activeKeys.has(key)) {
+      activeKeys.add(key);
+      simulateKeyEvent('keydown', key);
+    }
+  }
+
+  function releaseKey(key) {
+    if (activeKeys.has(key)) {
+      activeKeys.delete(key);
+      simulateKeyEvent('keyup', key);
+    }
+  }
+
+  function bindSimpleTouch(element, keyName) {
+    if (!element) return;
+
+    const onStart = (e) => {
+      e.preventDefault();
+      element.classList.add('active');
+      pressKey(keyName);
+      if (navigator.vibrate) navigator.vibrate(8);
+    };
+
+    const onEnd = (e) => {
+      e.preventDefault();
+      element.classList.remove('active');
+      releaseKey(keyName);
+    };
+
+    element.addEventListener('touchstart', onStart, { passive: false });
+    element.addEventListener('touchend', onEnd, { passive: false });
+    element.addEventListener('touchcancel', onEnd, { passive: false });
+
+    element.addEventListener('mousedown', onStart);
+    element.addEventListener('mouseup', onEnd);
+    element.addEventListener('mouseleave', onEnd);
+  }
+
+  document.querySelectorAll('.action-btn, .shoulder-btn, .center-btn:not(.btn-turbo)').forEach(btn => {
+    bindSimpleTouch(btn, btn.dataset.key);
+  });
+
+  // D-Pad com suporte a arrasto e diagonais (WASD)
+  const dpadZone = el('dpad-zone');
+  const dpadButtons = {
+    'w': document.querySelector('.dpad-up'),
+    's': document.querySelector('.dpad-down'),
+    'a': document.querySelector('.dpad-left'),
+    'd': document.querySelector('.dpad-right')
+  };
+
+  function updateDpadFromCoords(x, y) {
+    const rect = dpadZone.getBoundingClientRect();
+    const cx = rect.left + rect.width / 2;
+    const cy = rect.top + rect.height / 2;
+    const dx = x - cx;
+    const dy = y - cy;
+    const dist = Math.sqrt(dx * dx + dy * dy);
+
+    const neededKeys = new Set();
+    const deadzone = 12;
+
+    if (dist > deadzone) {
+      const angle = Math.atan2(dy, dx) * (180 / Math.PI);
+
+      if (angle >= -157.5 && angle <= -112.5) {
+        neededKeys.add('w'); neededKeys.add('a');
+      } else if (angle > -112.5 && angle < -67.5) {
+        neededKeys.add('w');
+      } else if (angle >= -67.5 && angle <= -22.5) {
+        neededKeys.add('w'); neededKeys.add('d');
+      } else if (angle > -22.5 && angle < 22.5) {
+        neededKeys.add('d');
+      } else if (angle >= 22.5 && angle <= 67.5) {
+        neededKeys.add('s'); neededKeys.add('d');
+      } else if (angle > 67.5 && angle < 112.5) {
+        neededKeys.add('s');
+      } else if (angle >= 112.5 && angle <= 157.5) {
+        neededKeys.add('s'); neededKeys.add('a');
+      } else {
+        neededKeys.add('a');
+      }
+    }
+
+    ['w', 's', 'a', 'd'].forEach(k => {
+      if (neededKeys.has(k)) {
+        pressKey(k);
+        dpadButtons[k]?.classList.add('active');
+      } else {
+        releaseKey(k);
+        dpadButtons[k]?.classList.remove('active');
+      }
+    });
+  }
+
+  function clearDpad() {
+    ['w', 's', 'a', 'd'].forEach(k => {
+      releaseKey(k);
+      dpadButtons[k]?.classList.remove('active');
+    });
+  }
+
+  let dpadTouchId = null;
+
+  dpadZone.addEventListener('touchstart', (e) => {
+    e.preventDefault();
+    const touch = e.changedTouches[0];
+    dpadTouchId = touch.identifier;
+    updateDpadFromCoords(touch.clientX, touch.clientY);
+    if (navigator.vibrate) navigator.vibrate(8);
+  }, { passive: false });
+
+  dpadZone.addEventListener('touchmove', (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === dpadTouchId) {
+        updateDpadFromCoords(e.changedTouches[i].clientX, e.changedTouches[i].clientY);
+        break;
+      }
+    }
+  }, { passive: false });
+
+  const endDpadTouch = (e) => {
+    e.preventDefault();
+    for (let i = 0; i < e.changedTouches.length; i++) {
+      if (e.changedTouches[i].identifier === dpadTouchId) {
+        dpadTouchId = null;
+        clearDpad();
+        break;
+      }
+    }
+  };
+
+  dpadZone.addEventListener('touchend', endDpadTouch, { passive: false });
+  dpadZone.addEventListener('touchcancel', endDpadTouch, { passive: false });
+}
+
+// Gamepad Bluetooth
+function initGamepadLoop() {
+  const gpButtonMapping = {
+    0: 'k',          // A no Xbox/PS -> B no SNES (Espada) [Tecla K]
+    1: 'l',          // B no Xbox/PS -> A no SNES (Ação) [Tecla L]
+    2: 'j',          // X no Xbox/PS -> Y no SNES (Correr) [Tecla J]
+    3: 'i',          // Y no Xbox/PS -> X no SNES (Mapa) [Tecla I]
+    4: 'q',          // L1 / LB -> L no SNES [Tecla Q]
+    5: 'o',          // R1 / RB -> R no SNES [Tecla O]
+    8: 'Shift',      // Select / Back
+    9: 'Enter',      // Start
+    12: 'w',         // Dpad Cima [Tecla W]
+    13: 's',         // Dpad Baixo [Tecla S]
+    14: 'a',         // Dpad Esquerda [Tecla A]
+    15: 'd'          // Dpad Direita [Tecla D]
+  };
+
+  const gpState = {};
+
+  function pollGamepads() {
+    const gamepads = navigator.getGamepads ? navigator.getGamepads() : [];
+    for (const gp of gamepads) {
+      if (!gp) continue;
+
+      for (const [btnIdx, keyName] of Object.entries(gpButtonMapping)) {
+        const isPressed = gp.buttons[btnIdx] && gp.buttons[btnIdx].pressed;
+        const wasPressed = gpState[btnIdx] || false;
+
+        if (isPressed && !wasPressed) {
+          simulateKeyEvent('keydown', keyName);
+        } else if (!isPressed && wasPressed) {
+          simulateKeyEvent('keyup', keyName);
+        }
+        gpState[btnIdx] = isPressed;
+      }
+
+      const deadzone = 0.35;
+      const axX = gp.axes[0] || 0;
+      const axY = gp.axes[1] || 0;
+
+      const left = axX < -deadzone;
+      const right = axX > deadzone;
+      const up = axY < -deadzone;
+      const down = axY > deadzone;
+
+      const checkAxis = (stateKey, isNow, keyName) => {
+        if (isNow && !gpState[stateKey]) simulateKeyEvent('keydown', keyName);
+        if (!isNow && gpState[stateKey]) simulateKeyEvent('keyup', keyName);
+        gpState[stateKey] = isNow;
+      };
+
+      checkAxis('ax_left', left, 'ArrowLeft');
+      checkAxis('ax_right', right, 'ArrowRight');
+      checkAxis('ax_up', up, 'ArrowUp');
+      checkAxis('ax_down', down, 'ArrowDown');
+
+      break;
+    }
+    requestAnimationFrame(pollGamepads);
+  }
+
+  requestAnimationFrame(pollGamepads);
+}
+
+if (document.readyState === 'loading') {
+  window.addEventListener('DOMContentLoaded', loadAssets);
+} else {
+  loadAssets();
+}
+
+// =========================================================================
+// PWA (Progressive Web App) - Registro de Service Worker e Instalação
+// =========================================================================
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      console.log('[PWA] Service Worker registrado com sucesso:', reg.scope);
+    }).catch((err) => {
+      console.warn('[PWA] Falha ao registrar Service Worker:', err);
+    });
   });
 }
 
