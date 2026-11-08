@@ -81,7 +81,7 @@ function generateIni() {
     'Turbo = Tab',
     'ReplayTurbo = t',
     'Fullscreen = Alt+Return',
-    'Reset = Ctrl+r',
+    'Reset = Ctrl+Shift+F12',
     'Pause = Shift+p',
     'Load = F1, F3, F4, F5',
     'Save = F2, Shift+F1, Shift+F2, Shift+F3',
@@ -119,6 +119,8 @@ const KEY_MAP = {
   'Q':          { key: 'q',          code: 'KeyQ',       keyCode: 81 },
   'o':          { key: 'o',          code: 'KeyO',       keyCode: 79 }, // Botão R (SNES)
   'O':          { key: 'o',          code: 'KeyO',       keyCode: 79 },
+  'r':          { key: 'o',          code: 'KeyO',       keyCode: 79 }, // Tecla R física -> Botão R (SNES)
+  'R':          { key: 'o',          code: 'KeyO',       keyCode: 79 },
 
   // Sistema / Menus
   'Shift':      { key: 'Shift',      code: 'ShiftRight', keyCode: 16 }, // Select
@@ -149,19 +151,94 @@ const KEY_MAP = {
   'Backspace':  { key: 'Backspace',  code: 'Backspace',  keyCode: 8 }
 };
 
-// Redireciona fisicamente as setas do teclado do PC para WASD
+function executeQuickSave() {
+  if (!zeldaModule) return;
+
+  // Dispara a tecla F2 (configurada como Save no KeyMap) e ShiftLeft + F1
+  simulateKeyEvent('keydown', 'F2');
+  simulateKeyEvent('keydown', 'ShiftLeft');
+  simulateKeyEvent('keydown', 'F1', { shiftKey: true });
+
+  setTimeout(() => {
+    simulateKeyEvent('keyup', 'F2');
+    simulateKeyEvent('keyup', 'F1', { shiftKey: true });
+    simulateKeyEvent('keyup', 'ShiftLeft');
+  }, 120);
+
+  // Persiste imediatamente no IndexedDB após o motor gravar o estado
+  setTimeout(() => {
+    if (zeldaModule && zeldaModule.FS) {
+      zeldaModule.FS.syncfs(false, (err) => {
+        if (err) console.warn('[Save State] Erro ao gravar no IndexedDB:', err);
+        else console.log('[Save State] Estado rápido gravado com sucesso no IndexedDB!');
+      });
+    }
+    showToast('💾 Estado Rápido Salvo no Navegador!');
+  }, 300);
+}
+
+function executeQuickLoad() {
+  if (!zeldaModule) return;
+
+  // Dispara F1 (configurado como Load no KeyMap)
+  simulateKeyEvent('keydown', 'F1');
+  setTimeout(() => {
+    simulateKeyEvent('keyup', 'F1');
+    showToast('📂 Estado Rápido Carregado!');
+  }, 120);
+}
+
+// Redireciona teclas físicas com captura global (Hotkeys F1/F2, Botão R e WASD)
 window.addEventListener('keydown', (e) => {
+  // Salvar Estado Rápido físico: F2 ou Shift+F1
+  if (e.code === 'F2' || (e.code === 'F1' && e.shiftKey)) {
+    e.preventDefault();
+    e.stopPropagation();
+    executeQuickSave();
+    return;
+  }
+
+  // Carregar Estado Rápido físico: F1 (sem Shift)
+  if (e.code === 'F1' && !e.shiftKey) {
+    e.preventDefault();
+    e.stopPropagation();
+    executeQuickLoad();
+    return;
+  }
+
+  // Intercepta a tecla R física para Botão R do SNES (Tecla O no motor)
+  // Evita que o motor mude para 4:3 ou dê reset acidental
+  if (e.code === 'KeyR' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault();
+    simulateKeyEvent('keydown', 'o');
+    return;
+  }
+
+  // Redireciona setas do teclado do PC para WASD
   const arrowMap = { 'ArrowUp': 'w', 'ArrowDown': 's', 'ArrowLeft': 'a', 'ArrowRight': 'd' };
   if (arrowMap[e.code]) {
     simulateKeyEvent('keydown', arrowMap[e.code]);
   }
-});
+}, true);
+
 window.addEventListener('keyup', (e) => {
+  if (e.code === 'F1' || e.code === 'F2') {
+    e.preventDefault();
+    e.stopPropagation();
+    return;
+  }
+
+  if (e.code === 'KeyR' && !e.ctrlKey && !e.altKey && !e.metaKey) {
+    e.preventDefault();
+    simulateKeyEvent('keyup', 'o');
+    return;
+  }
+
   const arrowMap = { 'ArrowUp': 'w', 'ArrowDown': 's', 'ArrowLeft': 'a', 'ArrowRight': 'd' };
   if (arrowMap[e.code]) {
     simulateKeyEvent('keyup', arrowMap[e.code]);
   }
-});
+}, true);
 
 function simulateKeyEvent(type, keyName, modifiers = {}) {
   const info = KEY_MAP[keyName] || { key: keyName, code: keyName, keyCode: 0 };
@@ -415,12 +492,20 @@ function applyShader(shaderName) {
 }
 
 function applyAspect(ratio) {
-  canvas.className = canvas.className.replace(/\baspect-[a-z0-9-]+\b/g, '');
-  if (ratio === '16:9') canvas.classList.add('aspect-16-9');
-  else if (ratio === '4:3') canvas.classList.add('aspect-4-3');
-  else if (ratio === '16:10') canvas.classList.add('aspect-16-10');
-  else if (ratio === '18:9') canvas.classList.add('aspect-18-9');
-  else if (ratio === 'fill') canvas.classList.add('aspect-fill');
+  canvas.classList.remove('aspect-16-9', 'aspect-4-3', 'aspect-16-10', 'aspect-fill', 'aspect-18-9');
+  if (ratio === '16:9') {
+    canvas.classList.add('aspect-16-9');
+    showToast('📐 Proporção: Widescreen 16:9');
+  } else if (ratio === '4:3') {
+    canvas.classList.add('aspect-4-3');
+    showToast('📐 Proporção: Clássica 4:3');
+  } else if (ratio === '16:10') {
+    canvas.classList.add('aspect-16-10');
+    showToast('📐 Proporção: 16:10');
+  } else if (ratio === 'fill') {
+    canvas.classList.add('aspect-fill');
+    showToast('📐 Proporção: Preencher Tela Cheia');
+  }
 }
 
 function setSpeed(multiplier) {
@@ -535,41 +620,12 @@ function initGameMenu() {
 
   // Saves - Salvar Estado Rápido
   el('opt-save-quick')?.addEventListener('click', () => {
-    if (!zeldaModule) return;
-
-    // Dispara a tecla F2 (configurada como Save no KeyMap) e ShiftLeft + F1
-    simulateKeyEvent('keydown', 'F2');
-    simulateKeyEvent('keydown', 'ShiftLeft');
-    simulateKeyEvent('keydown', 'F1', { shiftKey: true });
-
-    setTimeout(() => {
-      simulateKeyEvent('keyup', 'F2');
-      simulateKeyEvent('keyup', 'F1', { shiftKey: true });
-      simulateKeyEvent('keyup', 'ShiftLeft');
-    }, 120);
-
-    // Persiste imediatamente no IndexedDB após o motor gravar o estado
-    setTimeout(() => {
-      if (zeldaModule && zeldaModule.FS) {
-        zeldaModule.FS.syncfs(false, (err) => {
-          if (err) console.warn('[Save State] Erro ao gravar no IndexedDB:', err);
-          else console.log('[Save State] Estado rápido gravado com sucesso no IndexedDB!');
-        });
-      }
-      showToast('💾 Estado rápido salvo com sucesso!');
-    }, 300);
+    executeQuickSave();
   });
 
   // Saves - Carregar Estado Rápido
   el('opt-load-quick')?.addEventListener('click', () => {
-    if (!zeldaModule) return;
-
-    // Dispara F1 (configurado como Load no KeyMap)
-    simulateKeyEvent('keydown', 'F1');
-    setTimeout(() => {
-      simulateKeyEvent('keyup', 'F1');
-      showToast('📂 Estado rápido carregado!');
-    }, 120);
+    executeQuickLoad();
   });
 
   el('opt-download-srm')?.addEventListener('click', () => {

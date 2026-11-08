@@ -72,15 +72,43 @@
       <div class="game-menu-panel">
         <!-- Barra de Abas Estilo Cápsula (Pill Tabs) -->
         <div class="game-tabs">
+          <button class="game-tab active" data-tab="tab-saves">✓ Saves</button>
+          <button class="game-tab" data-tab="tab-image">Image</button>
           <button class="game-tab" data-tab="tab-cheats">Cheats</button>
-          <button class="game-tab active" data-tab="tab-image">✓ Image</button>
-          <button class="game-tab" data-tab="tab-chapters">Chapters</button>
-          <button class="game-tab" data-tab="tab-saves">Saves</button>
-          <button class="game-tab" data-tab="tab-controls">Controls</button>
+          <button class="game-tab" data-tab="tab-chapters">Chapter</button>
+          <button class="game-tab" data-tab="tab-controls">Control</button>
         </div>
 
-        <!-- Conteúdo da Aba Image (Os 7 Shaders Idênticos ao APK) -->
-        <div id="tab-image" class="game-tab-content active">
+        <!-- Conteúdo da Aba 1: Saves -->
+        <div id="tab-saves" class="game-tab-content active">
+          <div class="game-option" id="opt-save-quick">
+            <span class="toggle-icon">💾</span>
+            <span class="option-label">Salvar Estado Rápido (F2 / Shift+F1)</span>
+          </div>
+          <div class="game-option" id="opt-load-quick">
+            <span class="toggle-icon">📂</span>
+            <span class="option-label">Carregar Estado Rápido (F1)</span>
+          </div>
+          <div class="game-option" id="opt-download-srm">
+            <span class="toggle-icon">⬇️</span>
+            <span class="option-label">Baixar Save (.sav)</span>
+          </div>
+          <div class="game-option" id="opt-upload-srm">
+            <span class="toggle-icon">⬆️</span>
+            <span class="option-label">Restaurar Save (.sav)</span>
+          </div>
+          <div class="game-option" id="opt-install-pwa" style="display: none;">
+            <span class="toggle-icon">📲</span>
+            <span class="option-label">Instalar Zelda Web no Dispositivo</span>
+          </div>
+          <div class="game-option game-danger" id="opt-clean-reset">
+            <span class="toggle-icon">🗑️</span>
+            <span class="option-label">Iniciar Novo Jogo Limpo</span>
+          </div>
+        </div>
+
+        <!-- Conteúdo da Aba 2: Image (Shaders e Proporções) -->
+        <div id="tab-image" class="game-tab-content">
           <div class="game-option active" data-shader="sharp">
             <span class="radio-indicator"></span>
             <span class="option-label">Sharp pixels</span>
@@ -129,7 +157,7 @@
           </div>
         </div>
 
-        <!-- Conteúdo da Aba Cheats -->
+        <!-- Conteúdo da Aba 3: Cheats -->
         <div id="tab-cheats" class="game-tab-content">
           <div class="game-option" id="opt-cheat-life">
             <span class="toggle-icon">❤️</span>
@@ -159,46 +187,18 @@
           </div>
         </div>
 
-        <!-- Conteúdo da Aba Chapters (Capítulos) -->
+        <!-- Conteúdo da Aba 4: Chapter -->
         <div id="tab-chapters" class="game-tab-content">
           <div id="game-chapters-list">
             <!-- Gerado via JavaScript -->
           </div>
         </div>
 
-        <!-- Conteúdo da Aba Saves -->
-        <div id="tab-saves" class="game-tab-content">
-          <div class="game-option" id="opt-save-quick">
-            <span class="toggle-icon">💾</span>
-            <span class="option-label">Salvar Estado Rápido (F2 / Shift+F1)</span>
-          </div>
-          <div class="game-option" id="opt-load-quick">
-            <span class="toggle-icon">📂</span>
-            <span class="option-label">Carregar Estado Rápido (F1)</span>
-          </div>
-          <div class="game-option" id="opt-download-srm">
-            <span class="toggle-icon">⬇️</span>
-            <span class="option-label">Baixar Save (.sav)</span>
-          </div>
-          <div class="game-option" id="opt-upload-srm">
-            <span class="toggle-icon">⬆️</span>
-            <span class="option-label">Restaurar Save (.sav)</span>
-          </div>
-          <div class="game-option" id="opt-install-pwa" style="display: none;">
-            <span class="toggle-icon">📲</span>
-            <span class="option-label">Instalar Zelda Web no Dispositivo</span>
-          </div>
-          <div class="game-option game-danger" id="opt-clean-reset">
-            <span class="toggle-icon">🗑️</span>
-            <span class="option-label">Iniciar Novo Jogo Limpo</span>
-          </div>
-        </div>
-
-        <!-- Conteúdo da Aba Controls (Mapeamento Personalizado) -->
+        <!-- Conteúdo da Aba 5: Control -->
         <div id="tab-controls" class="game-tab-content">
           <div class="game-section-title">Movimentação</div>
           <div class="game-option">
-            <span class="option-label">🎮 Andar / Mover: <b>W, A, S, D</b></span>
+            <span class="option-label">🎮 Andar / Mover: <b>W, A, S, D ou Setas</b></span>
           </div>
           <div class="game-section-title">Ações do Jogo (SNES)</div>
           <div class="game-option">
@@ -217,7 +217,7 @@
             <span class="option-label">🛡️ <b>Botão L</b>: <b>Tecla Q</b></span>
           </div>
           <div class="game-option">
-            <span class="option-label">🛡️ <b>Botão R</b>: <b>Tecla O</b></span>
+            <span class="option-label">🛡️ <b>Botão R</b>: <b>Tecla R ou O</b></span>
           </div>
           <div class="game-section-title">Sistema</div>
           <div class="game-option">
@@ -229,11 +229,17 @@
           <div class="game-option">
             <span class="option-label">⚡ <b>Turbo / Acelerar</b>: <b>Tab</b></span>
           </div>
+          <div class="game-option">
+            <span class="option-label">💾 <b>Salvar Rápido</b>: <b>F2 ou Shift+F1</b></span>
+          </div>
+          <div class="game-option">
+            <span class="option-label">📂 <b>Carregar Rápido</b>: <b>F1</b></span>
+          </div>
         </div>
       </div>
     </div>
 
-    <!-- Controles Virtuais de Toque para Mobile (iOS Safari) -->
+        <!-- Controles Virtuais de Toque para Mobile (iOS Safari) -->
     <div id="touch-controls">
       <div id="dpad-zone">
         <div class="dpad-btn dpad-up" data-key="w">▲</div>
@@ -263,7 +269,7 @@
     <input type="file" id="file-save-input" accept=".sav,.srm,.dat" style="display:none;">
   </div>
 
-  <script src="zelda.js?v=ptbr_v9"></script>
-  <script src="app.js?v=ptbr_v9"></script>
+  <script src="zelda.js?v=ptbr_v10"></script>
+  <script src="app.js?v=ptbr_v10"></script>
 </body>
 </html>
