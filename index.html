@@ -1,0 +1,253 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <title>Zelda Web - A Link to the Past (PT-BR)</title>
+  <link rel="stylesheet" href="style.css?v=ptbr_v6">
+</head>
+<body>
+  <div id="game-container">
+    <canvas id="canvas" tabindex="0"></canvas>
+    
+    <!-- Filtros de Shaders (CRT Lottes, LCD Grid, Sharp Bilinear, xBR, OmniScale) -->
+    <div id="screen-filter"></div>
+
+    <!-- Overlay de Inicialização -->
+    <div id="start-overlay">
+      <div class="overlay-card">
+        <div class="triforce-icon">
+          <svg class="triforce-svg-large" viewBox="0 0 100 86.6" width="48" height="42">
+            <polygon points="50,0 25,43.3 75,43.3" fill="#f3df6d" />
+            <polygon points="25,43.3 0,86.6 50,86.6" fill="#f3df6d" />
+            <polygon points="75,43.3 50,86.6 100,86.6" fill="#f3df6d" />
+          </svg>
+        </div>
+        <h1>ZELDA WEB</h1>
+        <h2>A Link to the Past (PT-BR)</h2>
+        <p class="subtitle">Versão Nativa WebAssembly &bull; Widescreen 16:9 &bull; HD</p>
+        <div id="loading-bar-container">
+          <div id="loading-bar"></div>
+        </div>
+        <p id="status-text">Carregando recursos em Português...</p>
+        <button id="btn-play" style="display: none;">▶ Iniciar Jogo</button>
+      </div>
+    </div>
+
+    <!-- Barra de Ferramentas Superior Discreta -->
+    <div id="top-bar">
+      <div class="brand">
+        <span class="triforce-brand">
+          <svg class="triforce-svg" viewBox="0 0 100 86.6" width="18" height="16">
+            <polygon points="50,0 25,43.3 75,43.3" fill="#f3df6d" />
+            <polygon points="25,43.3 0,86.6 50,86.6" fill="#f3df6d" />
+            <polygon points="75,43.3 50,86.6 100,86.6" fill="#f3df6d" />
+          </svg>
+        </span>
+        Zelda Web
+      </div>
+      <div class="actions">
+        <button id="btn-menu-toggle" class="toolbar-btn primary" title="Abrir Menu de Ajustes">⚙️ Menu</button>
+        <button id="btn-fullscreen" class="toolbar-btn" title="Tela Cheia">⛶</button>
+        <button id="btn-toggle-controls" class="toolbar-btn" title="Mostrar/Ocultar Controles">🎮</button>
+      </div>
+    </div>
+
+    <!-- Menu Flutuante Translúcido Zelda Web -->
+    <div id="game-menu" class="game-menu-container menu-visible">
+      <div class="game-menu-panel">
+        <!-- Barra de Abas Estilo Cápsula (Pill Tabs) -->
+        <div class="game-tabs">
+          <button class="game-tab" data-tab="tab-cheats">Cheats</button>
+          <button class="game-tab active" data-tab="tab-image">✓ Image</button>
+          <button class="game-tab" data-tab="tab-chapters">Chapters</button>
+          <button class="game-tab" data-tab="tab-saves">Saves</button>
+          <button class="game-tab" data-tab="tab-controls">Controls</button>
+        </div>
+
+        <!-- Conteúdo da Aba Image (Os 7 Shaders Idênticos ao APK) -->
+        <div id="tab-image" class="game-tab-content active">
+          <div class="game-option active" data-shader="sharp">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Sharp pixels</span>
+          </div>
+          <div class="game-option" data-shader="smooth">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Smooth</span>
+          </div>
+          <div class="game-option" data-shader="crt">
+            <span class="radio-indicator"></span>
+            <span class="option-label">CRT (Lottes)</span>
+          </div>
+          <div class="game-option" data-shader="lcd">
+            <span class="radio-indicator"></span>
+            <span class="option-label">LCD grid</span>
+          </div>
+          <div class="game-option" data-shader="sharp-bilinear">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Sharp bilinear</span>
+          </div>
+          <div class="game-option" data-shader="xbr">
+            <span class="radio-indicator"></span>
+            <span class="option-label">xBR</span>
+          </div>
+          <div class="game-option" data-shader="omniscale">
+            <span class="radio-indicator"></span>
+            <span class="option-label">OmniScale</span>
+          </div>
+
+          <div class="game-section-title">Aspect Ratio (Proporção)</div>
+          <div class="game-option active" data-aspect="16:9">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Widescreen 16:9</span>
+          </div>
+          <div class="game-option" data-aspect="4:3">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Classic 4:3</span>
+          </div>
+          <div class="game-option" data-aspect="16:10">
+            <span class="radio-indicator"></span>
+            <span class="option-label">16:10</span>
+          </div>
+          <div class="game-option" data-aspect="fill">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Preencher Tela</span>
+          </div>
+        </div>
+
+        <!-- Conteúdo da Aba Cheats -->
+        <div id="tab-cheats" class="game-tab-content">
+          <div class="game-option" id="opt-cheat-life">
+            <span class="toggle-icon">❤️</span>
+            <span class="option-label">Recuperar Vida e Magia</span>
+          </div>
+          <div class="game-option" id="opt-cheat-keys">
+            <span class="toggle-icon">🔑</span>
+            <span class="option-label">Chaves e Recursos Máximos</span>
+          </div>
+          <div class="game-option" id="opt-cheat-walls">
+            <span class="toggle-icon">🧱</span>
+            <span class="option-label">Atravessar Paredes (Ghost)</span>
+          </div>
+
+          <div class="game-section-title">Velocidade / Turbo</div>
+          <div class="game-option active" data-speed="1">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Normal (1x)</span>
+          </div>
+          <div class="game-option" data-speed="2">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Rápido (2x)</span>
+          </div>
+          <div class="game-option" data-speed="4">
+            <span class="radio-indicator"></span>
+            <span class="option-label">Turbo Máximo (4x)</span>
+          </div>
+        </div>
+
+        <!-- Conteúdo da Aba Chapters (Capítulos) -->
+        <div id="tab-chapters" class="game-tab-content">
+          <div id="game-chapters-list">
+            <!-- Gerado via JavaScript -->
+          </div>
+        </div>
+
+        <!-- Conteúdo da Aba Saves -->
+        <div id="tab-saves" class="game-tab-content">
+          <div class="game-option" id="opt-save-quick">
+            <span class="toggle-icon">💾</span>
+            <span class="option-label">Salvar Estado Rápido (Shift+F1)</span>
+          </div>
+          <div class="game-option" id="opt-load-quick">
+            <span class="toggle-icon">📂</span>
+            <span class="option-label">Carregar Estado Rápido (F1)</span>
+          </div>
+          <div class="game-option" id="opt-download-srm">
+            <span class="toggle-icon">⬇️</span>
+            <span class="option-label">Baixar Save (.srm)</span>
+          </div>
+          <div class="game-option" id="opt-upload-srm">
+            <span class="toggle-icon">⬆️</span>
+            <span class="option-label">Restaurar Save (.srm)</span>
+          </div>
+          <div class="game-option game-danger" id="opt-clean-reset">
+            <span class="toggle-icon">🗑️</span>
+            <span class="option-label">Iniciar Novo Jogo Limpo</span>
+          </div>
+        </div>
+
+        <!-- Conteúdo da Aba Controls (Mapeamento Personalizado) -->
+        <div id="tab-controls" class="game-tab-content">
+          <div class="game-section-title">Movimentação</div>
+          <div class="game-option">
+            <span class="option-label">🎮 Andar / Mover: <b>W, A, S, D</b></span>
+          </div>
+          <div class="game-section-title">Ações do Jogo (SNES)</div>
+          <div class="game-option">
+            <span class="option-label">🗡️ <b>B</b> (Espada / Ataque): <b>Tecla K</b></span>
+          </div>
+          <div class="game-option">
+            <span class="option-label">🏃 <b>A</b> (Pegar / Ação / Rolar): <b>Tecla L</b></span>
+          </div>
+          <div class="game-option">
+            <span class="option-label">🏹 <b>Y</b> (Correr / Item Secundário): <b>Tecla J</b></span>
+          </div>
+          <div class="game-option">
+            <span class="option-label">🗺️ <b>X</b> (Abrir Mapa de Hyrule): <b>Tecla I</b></span>
+          </div>
+          <div class="game-option">
+            <span class="option-label">🛡️ <b>Botão L</b>: <b>Tecla Q</b></span>
+          </div>
+          <div class="game-option">
+            <span class="option-label">🛡️ <b>Botão R</b>: <b>Tecla O</b></span>
+          </div>
+          <div class="game-section-title">Sistema</div>
+          <div class="game-option">
+            <span class="option-label">⏸️ <b>Start</b>: <b>Enter</b></span>
+          </div>
+          <div class="game-option">
+            <span class="option-label">📋 <b>Select</b>: <b>Shift</b></span>
+          </div>
+          <div class="game-option">
+            <span class="option-label">⚡ <b>Turbo / Acelerar</b>: <b>Tab</b></span>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- Controles Virtuais de Toque para Mobile (iOS Safari) -->
+    <div id="touch-controls">
+      <div id="dpad-zone">
+        <div class="dpad-btn dpad-up" data-key="w">▲</div>
+        <div class="dpad-btn dpad-down" data-key="s">▼</div>
+        <div class="dpad-btn dpad-left" data-key="a">◀</div>
+        <div class="dpad-btn dpad-right" data-key="d">▶</div>
+        <div class="dpad-center"></div>
+      </div>
+
+      <div id="action-zone">
+        <div class="action-btn btn-x" data-key="i" title="X (I)">X</div>
+        <div class="action-btn btn-y" data-key="j" title="Y (J)">Y</div>
+        <div class="action-btn btn-b" data-key="k" title="B (K)">B</div>
+        <div class="action-btn btn-a" data-key="l" title="A (L)">A</div>
+      </div>
+
+      <div class="shoulder-btn btn-l" data-key="q" title="L (Q)">L</div>
+      <div class="shoulder-btn btn-r" data-key="o" title="R (O)">R</div>
+
+      <div id="center-zone">
+        <div class="center-btn btn-select" data-key="Shift">SELECT</div>
+        <div class="center-btn btn-turbo" id="btn-touch-turbo">TURBO</div>
+        <div class="center-btn btn-start" data-key="Enter">START</div>
+      </div>
+    </div>
+
+    <input type="file" id="file-save-input" accept=".dat,.sav,.srm" style="display:none;">
+  </div>
+
+  <script src="zelda.js?v=ptbr_v6"></script>
+  <script src="app.js?v=ptbr_v6"></script>
+</body>
+</html>

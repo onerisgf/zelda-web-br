@@ -1,0 +1,620 @@
+:root {
+  --bg-color: #000;
+  --menu-bg: transparent;
+  --item-bg: rgba(18, 20, 15, 0.84);
+  --item-active: rgba(26, 28, 19, 0.92);
+  --tab-bg: rgba(22, 24, 18, 0.75);
+  --tab-gold: #5e5318;
+  --tab-border: #7c6f24;
+  --radio-gold: #f3df6d;
+  --btn-touch-bg: rgba(255, 255, 255, 0.18);
+  --btn-touch-active: rgba(243, 223, 109, 0.6);
+  --btn-border: rgba(255, 255, 255, 0.28);
+}
+
+* {
+  box-sizing: border-box;
+  -webkit-touch-callout: none;
+  -webkit-user-select: none;
+  user-select: none;
+}
+
+html, body {
+  margin: 0;
+  padding: 0;
+  width: 100%;
+  height: 100%;
+  overflow: hidden;
+  background-color: var(--bg-color);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+  color: #fff;
+}
+
+#game-container {
+  position: relative;
+  width: 100%;
+  height: 100%;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  background: #000;
+  overflow: hidden;
+}
+
+canvas#canvas {
+  width: 100%;
+  height: 100%;
+  max-width: 100vw;
+  max-height: 100vh;
+  object-fit: contain;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+  display: block;
+  outline: none;
+  transition: width 0.2s, height 0.2s;
+}
+
+/* Proporções da Tela */
+canvas.aspect-16-9 {
+  aspect-ratio: 16 / 9;
+}
+canvas.aspect-4-3 {
+  aspect-ratio: 4 / 3;
+}
+canvas.aspect-16-10 {
+  aspect-ratio: 16 / 10;
+}
+canvas.aspect-18-9 {
+  aspect-ratio: 18 / 9;
+}
+canvas.aspect-fill {
+  object-fit: fill !important;
+}
+
+/* ==========================================================
+   Filtros Visuais (Os 7 Shaders do Zelda Web)
+   ========================================================== */
+canvas.filter-sharp {
+  image-rendering: pixelated !important;
+  image-rendering: crisp-edges !important;
+  filter: none;
+}
+
+canvas.filter-smooth {
+  image-rendering: auto !important;
+  filter: blur(0.35px) contrast(102%);
+}
+
+canvas.filter-sharp-bilinear {
+  image-rendering: auto !important;
+  filter: contrast(108%) brightness(102%);
+}
+
+canvas.filter-xbr {
+  image-rendering: auto !important;
+  filter: contrast(116%) saturate(110%) blur(0.2px);
+}
+
+canvas.filter-omniscale {
+  image-rendering: pixelated !important;
+  filter: contrast(122%) brightness(104%);
+}
+
+/* Camada de Overlay de Efeitos (CRT Lottes e LCD Grid) */
+#screen-filter {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  pointer-events: none;
+  z-index: 10;
+  display: none;
+}
+
+/* CRT Lottes: Scanlines, máscara de fósforo e curvatura */
+#screen-filter.filter-crt {
+  display: block;
+  background: repeating-linear-gradient(to bottom, rgba(0, 0, 0, 0) 0px, rgba(0, 0, 0, 0) 2px, rgba(0, 0, 0, 0.45) 3px, rgba(0, 0, 0, 0.45) 4px),
+              repeating-linear-gradient(to right, rgba(255, 0, 0, 0.05) 0px, rgba(0, 255, 0, 0.05) 1px, rgba(0, 0, 255, 0.05) 2px, rgba(0, 0, 0, 0.25) 3px);
+  box-shadow: inset 0 0 80px rgba(0, 0, 0, 0.85);
+}
+
+/* LCD Grid: Subpixel Matrix estilo tela portátil */
+#screen-filter.filter-lcd {
+  display: block;
+  background: radial-gradient(circle, rgba(0,0,0,0) 65%, rgba(0,0,0,0.5) 100%),
+              linear-gradient(rgba(0,0,0,0.3) 1px, transparent 1px),
+              linear-gradient(90deg, rgba(0,0,0,0.3) 1px, transparent 1px);
+  background-size: 100% 100%, 3px 3px, 3px 3px;
+}
+
+/* ==========================================================
+   Menu Zelda Web Flutuante com Opacidade (Idêntico ao APK)
+   ========================================================== */
+.game-menu-container {
+  position: absolute;
+  top: 55px;
+  left: 24px;
+  width: 320px;
+  max-width: calc(100% - 48px);
+  z-index: 100;
+  pointer-events: auto;
+  transition: opacity 0.25s ease, transform 0.25s ease, visibility 0.25s ease;
+}
+
+.game-menu-container.menu-hidden {
+  opacity: 0;
+  visibility: hidden;
+  transform: translateY(-10px);
+  pointer-events: none;
+}
+
+@media (max-width: 600px) {
+  .game-menu-container {
+    top: 52px;
+    left: 50%;
+    transform: translateX(-50%);
+    width: 320px;
+  }
+  .game-menu-container.menu-hidden {
+    transform: translate(-50%, -10px);
+  }
+}
+
+.game-menu-panel {
+  background: transparent;
+  border-radius: 18px;
+  padding: 0;
+  box-shadow: none;
+  max-height: 85vh;
+  display: flex;
+  flex-direction: column;
+  overflow-y: auto;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255,255,255,0.2) transparent;
+}
+
+/* Abas estilo cápsula no topo */
+.game-tabs {
+  display: flex;
+  background: transparent;
+  padding: 0;
+  margin-bottom: 8px;
+  gap: 4px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.game-tabs::-webkit-scrollbar {
+  display: none;
+}
+
+.game-tab {
+  flex: 1 0 auto;
+  background: var(--tab-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  padding: 6px 8px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 14px;
+  cursor: pointer;
+  text-align: center;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+}
+
+.game-tab.active {
+  background: var(--tab-gold);
+  border-color: var(--tab-border);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
+}
+
+.game-tab-content {
+  display: none;
+  flex-direction: column;
+}
+
+.game-tab-content.active {
+  display: flex;
+}
+
+.game-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+  margin: 10px 4px 5px 4px;
+  text-shadow: 0 1px 2px rgba(0,0,0,0.8);
+}
+
+/* Opções estilo botão arredondado preto com transparência (Idêntico ao Zelda Web) */
+.game-option {
+  background: var(--item-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 14px;
+  padding: 11px 16px;
+  margin-bottom: 5px;
+  display: flex;
+  align-items: center;
+  gap: 13px;
+  cursor: pointer;
+  box-shadow: 0 4px 10px rgba(0, 0, 0, 0.35);
+  transition: background 0.15s, border-color 0.15s, transform 0.1s;
+}
+
+.game-option:active {
+  background: var(--item-active);
+  transform: scale(0.985);
+}
+
+.game-option.active {
+  background: var(--item-active);
+  border-color: rgba(243, 223, 109, 0.45);
+}
+
+.option-label {
+  font-size: 14.5px;
+  color: #f8fafc;
+  font-weight: 500;
+  letter-spacing: 0.2px;
+}
+
+.toggle-icon {
+  font-size: 16px;
+  width: 20px;
+  text-align: center;
+}
+
+/* Indicador de Rádio Amarelo/Dourado (Idêntico ao print do Zelda Web) */
+.radio-indicator {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  border: 2px solid rgba(255, 255, 255, 0.55);
+  position: relative;
+  display: inline-block;
+  flex-shrink: 0;
+}
+
+.game-option.active .radio-indicator {
+  border-color: var(--radio-gold);
+}
+
+.game-option.active .radio-indicator::after {
+  content: '';
+  position: absolute;
+  top: 3px;
+  left: 3px;
+  right: 3px;
+  bottom: 3px;
+  background: var(--radio-gold);
+  border-radius: 50%;
+}
+
+.game-danger {
+  border-color: rgba(239, 68, 68, 0.4);
+}
+.game-danger .option-label {
+  color: #fca5a5;
+}
+
+/* Barra Superior */
+#top-bar {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 48px;
+  padding: 0 16px;
+  padding-top: env(safe-area-inset-top, 0);
+  background: linear-gradient(to bottom, rgba(0,0,0,0.8), rgba(0,0,0,0));
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  z-index: 50;
+  pointer-events: none;
+}
+
+
+
+#top-bar .brand {
+  font-size: 15px;
+  font-weight: 700;
+  color: #f8fafc;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.9);
+  letter-spacing: 0.5px;
+}
+
+.triforce-brand {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.triforce-svg {
+  display: block;
+  filter: drop-shadow(0 0 4px rgba(243, 223, 109, 0.85));
+}
+
+.triforce-svg-large {
+  display: block;
+  margin: 0 auto;
+  filter: drop-shadow(0 0 10px rgba(243, 223, 109, 0.85));
+}
+
+#top-bar .brand-old {
+  font-size: 13px;
+  font-weight: 600;
+  color: rgba(255,255,255,0.8);
+}
+
+#top-bar .actions {
+  display: flex;
+  gap: 8px;
+  pointer-events: auto;
+}
+
+.toolbar-btn {
+  background: rgba(255, 255, 255, 0.18);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 500;
+  cursor: pointer;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+
+.toolbar-btn.primary {
+  background: rgba(115, 104, 27, 0.5);
+  border-color: rgba(243, 223, 109, 0.6);
+  color: #fef08a;
+  font-weight: 600;
+}
+
+/* Overlay Inicial */
+#start-overlay {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  background: rgba(10, 12, 16, 0.94);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  z-index: 150;
+  padding: 20px;
+}
+
+.overlay-card {
+  background: rgba(20, 24, 34, 0.95);
+  border: 1px solid rgba(243, 223, 109, 0.35);
+  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.8), 0 0 20px rgba(243, 223, 109, 0.15);
+  border-radius: 16px;
+  padding: 28px 24px;
+  max-width: 440px;
+  width: 100%;
+  text-align: center;
+}
+
+.triforce-icon {
+  font-size: 20px;
+  color: var(--radio-gold);
+  line-height: 0.9;
+  margin-bottom: 12px;
+  text-shadow: 0 0 10px rgba(243, 223, 109, 0.6);
+}
+
+.overlay-card h1 {
+  font-size: 24px;
+  margin: 0 0 4px 0;
+  color: var(--radio-gold);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+}
+
+.overlay-card h2 {
+  font-size: 16px;
+  margin: 0 0 10px 0;
+  color: #f0f0f0;
+  font-weight: 500;
+}
+
+.subtitle {
+  font-size: 13px;
+  color: #9da3af;
+  margin-bottom: 20px;
+}
+
+#loading-bar-container {
+  width: 100%;
+  height: 8px;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+#loading-bar {
+  width: 0%;
+  height: 100%;
+  background: linear-gradient(90deg, var(--tab-gold), var(--radio-gold));
+  transition: width 0.3s ease;
+}
+
+#status-text {
+  font-size: 13px;
+  color: #cbd5e1;
+  min-height: 20px;
+  margin-bottom: 16px;
+}
+
+#btn-play {
+  background: linear-gradient(135deg, var(--tab-gold), #998317);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  font-size: 17px;
+  font-weight: bold;
+  padding: 13px 30px;
+  border-radius: 30px;
+  cursor: pointer;
+  box-shadow: 0 4px 15px rgba(0, 0, 0, 0.4);
+}
+
+/* Controles Virtuais de Toque */
+#touch-controls {
+  position: absolute;
+  top: 0; left: 0; right: 0; bottom: 0;
+  pointer-events: none;
+  z-index: 40;
+  touch-action: none;
+}
+
+#dpad-zone {
+  position: absolute;
+  bottom: 24px;
+  left: 20px;
+  margin-left: env(safe-area-inset-left, 0);
+  margin-bottom: env(safe-area-inset-bottom, 0);
+  width: 150px;
+  height: 150px;
+  pointer-events: auto;
+}
+
+.dpad-center {
+  position: absolute;
+  top: 50px; left: 50px;
+  width: 50px; height: 50px;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: 6px;
+}
+
+.dpad-btn {
+  position: absolute;
+  background: var(--btn-touch-bg);
+  border: 1px solid var(--btn-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.dpad-up { top: 0; left: 50px; width: 50px; height: 50px; border-radius: 10px 10px 0 0; }
+.dpad-down { bottom: 0; left: 50px; width: 50px; height: 50px; border-radius: 0 0 10px 10px; }
+.dpad-left { top: 50px; left: 0; width: 50px; height: 50px; border-radius: 10px 0 0 10px; }
+.dpad-right { top: 50px; right: 0; width: 50px; height: 50px; border-radius: 0 10px 10px 0; }
+
+.dpad-btn.active, .dpad-btn:active {
+  background: var(--btn-touch-active) !important;
+  color: #111 !important;
+  transform: scale(0.95);
+}
+
+#action-zone {
+  position: absolute;
+  bottom: 24px;
+  right: 20px;
+  margin-right: env(safe-area-inset-right, 0);
+  margin-bottom: env(safe-area-inset-bottom, 0);
+  width: 160px;
+  height: 160px;
+  pointer-events: auto;
+}
+
+.action-btn {
+  position: absolute;
+  width: 52px;
+  height: 52px;
+  border-radius: 50%;
+  background: var(--btn-touch-bg);
+  border: 2px solid var(--btn-border);
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 20px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.9);
+}
+
+.btn-x { top: 0; left: 54px; border-color: rgba(67, 97, 238, 0.7); color: #8da4ff; }
+.btn-y { top: 54px; left: 0; border-color: rgba(76, 201, 240, 0.7); color: #8fe8ff; }
+.btn-b { bottom: 0; left: 54px; border-color: rgba(247, 37, 133, 0.7); color: #ff85b8; }
+.btn-a { top: 54px; right: 0; border-color: rgba(247, 127, 0, 0.7); color: #ffad66; }
+
+.action-btn.active, .action-btn:active {
+  background: var(--btn-touch-active) !important;
+  color: #111 !important;
+  transform: scale(0.92);
+}
+
+.shoulder-btn {
+  position: absolute;
+  top: 58px;
+  width: 76px;
+  height: 42px;
+  background: var(--btn-touch-bg);
+  border: 1px solid var(--btn-border);
+  border-radius: 21px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  font-size: 15px;
+  font-weight: bold;
+  color: rgba(255, 255, 255, 0.8);
+  pointer-events: auto;
+}
+
+.btn-l { left: 20px; margin-left: env(safe-area-inset-left, 0); }
+.btn-r { right: 20px; margin-right: env(safe-area-inset-right, 0); }
+
+.shoulder-btn.active, .shoulder-btn:active {
+  background: var(--btn-touch-active) !important;
+  color: #111 !important;
+}
+
+#center-zone {
+  position: absolute;
+  bottom: 16px;
+  left: 50%;
+  transform: translateX(-50%);
+  display: flex;
+  gap: 12px;
+  pointer-events: auto;
+}
+
+.center-btn {
+  background: var(--btn-touch-bg);
+  border: 1px solid var(--btn-border);
+  border-radius: 12px;
+  padding: 8px 14px;
+  font-size: 11px;
+  font-weight: bold;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.btn-turbo {
+  background: rgba(115, 104, 27, 0.35);
+  border-color: rgba(243, 223, 109, 0.5);
+  color: #fef08a;
+}
+
+.center-btn.active, .center-btn:active {
+  background: var(--btn-touch-active) !important;
+  color: #111;
+}
