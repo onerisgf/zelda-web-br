@@ -1,5 +1,11 @@
 # 🗡️ Zelda Web - A Link to the Past (PT-BR)
 
+[![Jogar Online](https://img.shields.io/badge/▶_JOGAR_ONLINE_AGORA-onerisgf.github.io%2Fzelda--web--br-gold?style=for-the-badge&logo=googlechrome&logoColor=white)](https://onerisgf.github.io/zelda-web-br/)
+
+> 🎮 **Acesse e jogue diretamente pelo navegador:** **[https://onerisgf.github.io/zelda-web-br/](https://onerisgf.github.io/zelda-web-br/)**
+
+---
+
 Versão nativa em **WebAssembly** de *The Legend of Zelda: A Link to the Past*, totalmente em **Português (PT-BR)**, com suporte a **Widescreen 16:9**, gráficos em alta definição (**HD Mode 7 / Shaders**) e jogável direto pelo navegador no PC ou no celular (iOS / Android).
 
 ---
@@ -36,6 +42,7 @@ Versão nativa em **WebAssembly** de *The Legend of Zelda: A Link to the Past*, 
 
 ---
 
-## 🌐 Publicação no GitHub Pages
+## 🌐 Publicado no GitHub Pages
 
-Este projeto é 100% estático (HTML5 + WebAssembly). Ao enviar para o GitHub, você pode ativar o **GitHub Pages** nas configurações do repositório (`Settings > Pages > Branch: main`) para ter o jogo online 24/7 de graça para qualquer pessoa jogar!
+Este projeto é 100% estático (HTML5 + WebAssembly) e está online no GitHub Pages:  
+👉 **[https://onerisgf.github.io/zelda-web-br/](https://onerisgf.github.io/zelda-web-br/)**
