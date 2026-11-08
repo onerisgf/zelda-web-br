@@ -7,6 +7,13 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <title>Zelda Web - A Link to the Past (PT-BR)</title>
   <link rel="stylesheet" href="style.css?v=ptbr_v6">
+  <link rel="manifest" href="manifest.json">
+  <link rel="apple-touch-icon" href="apple-touch-icon.png">
+  <link rel="icon" type="image/png" sizes="192x192" href="icon-192.png">
+  <link rel="icon" type="image/png" sizes="512x512" href="icon-512.png">
+  <meta name="theme-color" content="#0a0c10">
+  <meta name="mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Zelda Web">
 </head>
 <body>
   <div id="game-container">
@@ -49,6 +56,7 @@
         Zelda Web
       </div>
       <div class="actions">
+        <button id="btn-install-app" class="toolbar-btn primary" title="Instalar Aplicativo no Dispositivo" style="display: none;">📲 Instalar</button>
         <button id="btn-menu-toggle" class="toolbar-btn primary" title="Abrir Menu de Ajustes">⚙️ Menu</button>
         <button id="btn-fullscreen" class="toolbar-btn" title="Tela Cheia">⛶</button>
         <button id="btn-toggle-controls" class="toolbar-btn" title="Mostrar/Ocultar Controles">🎮</button>
@@ -171,6 +179,10 @@
           <div class="game-option" id="opt-upload-srm">
             <span class="toggle-icon">⬆️</span>
             <span class="option-label">Restaurar Save (.srm)</span>
+          </div>
+          <div class="game-option" id="opt-install-pwa" style="display: none;">
+            <span class="toggle-icon">📲</span>
+            <span class="option-label">Instalar Zelda Web no Dispositivo</span>
           </div>
           <div class="game-option game-danger" id="opt-clean-reset">
             <span class="toggle-icon">🗑️</span>

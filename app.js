@@ -819,3 +819,56 @@ function initGamepadLoop() {
 }
 
 window.addEventListener('DOMContentLoaded', loadAssets);
+
+// =========================================================================
+// PWA (Progressive Web App) - Registro de Service Worker e Instalação
+// =========================================================================
+
+if ('serviceWorker' in navigator) {
+  window.addEventListener('load', () => {
+    navigator.serviceWorker.register('./sw.js').then((reg) => {
+      console.log('[PWA] Service Worker registrado com sucesso:', reg.scope);
+    }).catch((err) => {
+      console.warn('[PWA] Falha ao registrar Service Worker:', err);
+    });
+  });
+}
+
+let deferredInstallPrompt = null;
+
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  deferredInstallPrompt = e;
+  const btnInstall = el('btn-install-app');
+  if (btnInstall) btnInstall.style.display = 'inline-flex';
+  const menuInstall = el('opt-install-pwa');
+  if (menuInstall) menuInstall.style.display = 'flex';
+  console.log('[PWA] Pronto para instalar!');
+});
+
+async function triggerInstallPrompt() {
+  if (deferredInstallPrompt) {
+    deferredInstallPrompt.prompt();
+    const { outcome } = await deferredInstallPrompt.userChoice;
+    console.log('[PWA] Escolha do usuário:', outcome);
+    deferredInstallPrompt = null;
+    const btn = el('btn-install-app');
+    if (btn) btn.style.display = 'none';
+    const opt = el('opt-install-pwa');
+    if (opt) opt.style.display = 'none';
+  } else {
+    alert('📱 Para instalar Zelda Web:\n\n• No Android (Google Chrome): Toque nos 3 pontinhos (⋮) no topo direito e selecione "Instalar aplicativo" ou "Adicionar à tela inicial".\n\n• No PC (Google Chrome ou Edge): Clique no ícone de instalar (computador com seta) no canto direito da barra de endereços.\n\n• No iPhone/iPad (Safari): Toque no botão Compartilhar e selecione "Adicionar à Tela de Início".');
+  }
+}
+
+el('btn-install-app')?.addEventListener('click', triggerInstallPrompt);
+el('opt-install-pwa')?.addEventListener('click', triggerInstallPrompt);
+
+window.addEventListener('appinstalled', () => {
+  deferredInstallPrompt = null;
+  const btn = el('btn-install-app');
+  if (btn) btn.style.display = 'none';
+  const opt = el('opt-install-pwa');
+  if (opt) opt.style.display = 'none';
+  console.log('[PWA] Aplicativo instalado com sucesso na tela inicial!');
+});
