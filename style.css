@@ -647,38 +647,50 @@ canvas.filter-omniscale {
     object-fit: contain !important;
   }
 
-  /* Botões L e R acima do game, centralizados no espaço superior */
+  /* Botões L e R diagonais na parte inferior (resolução 9:16 / retrato idênticos ao anexo) */
   .shoulder-btn {
     position: absolute;
-    top: clamp(60px, 15vh, 210px);
-    width: 86px;
-    height: 44px;
-    border-radius: 22px;
+    bottom: calc(clamp(65px, 9.5vh, 105px) + 140px);
+    width: 78px;
+    height: 42px;
+    border-radius: 21px;
     display: flex;
     justify-content: center;
     align-items: center;
-    font-size: 17px;
-    font-weight: 700;
-    background: rgba(255, 255, 255, 0.12);
-    border: 1.5px solid rgba(255, 255, 255, 0.25);
+    font-size: 18px;
+    font-weight: 800;
+    background: rgba(255, 255, 255, 0.14);
+    border: 1.5px solid rgba(255, 255, 255, 0.28);
     backdrop-filter: blur(8px);
     -webkit-backdrop-filter: blur(8px);
-    color: rgba(255, 255, 255, 0.85);
+    color: rgba(255, 255, 255, 0.9);
     pointer-events: auto;
-    transition: transform 0.1s ease, background 0.1s ease;
+    transition: transform 0.08s ease, background 0.08s ease;
+    z-index: 10;
   }
+
   .btn-l {
-    left: 20px;
-    margin-left: env(safe-area-inset-left, 0);
+    left: calc(12px + env(safe-area-inset-left, 0px));
+    transform: rotate(-45deg);
+    transform-origin: center center;
   }
+
   .btn-r {
-    right: 20px;
-    margin-right: env(safe-area-inset-right, 0);
+    right: calc(12px + env(safe-area-inset-right, 0px));
+    transform: rotate(45deg);
+    transform-origin: center center;
   }
-  .shoulder-btn.active, .shoulder-btn:active {
-    background: rgba(255, 255, 255, 0.35) !important;
+
+  .btn-l.active, .btn-l:active {
+    background: rgba(255, 255, 255, 0.38) !important;
     color: #fff !important;
-    transform: scale(0.94);
+    transform: rotate(-45deg) scale(0.93) !important;
+  }
+
+  .btn-r.active, .btn-r:active {
+    background: rgba(255, 255, 255, 0.38) !important;
+    color: #fff !important;
+    transform: rotate(45deg) scale(0.93) !important;
   }
 
   /* D-Pad espaçoso na parte inferior esquerda */
