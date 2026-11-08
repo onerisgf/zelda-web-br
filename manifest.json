@@ -4,7 +4,7 @@
   "description": "The Legend of Zelda: A Link to the Past em Português (PT-BR) no Navegador",
   "start_url": "./index.html",
   "scope": "./",
-  "display": "standalone",
+  "display": "fullscreen",
   "orientation": "any",
   "background_color": "#0a0c10",
   "theme_color": "#0a0c10",

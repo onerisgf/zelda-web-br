@@ -32,6 +32,87 @@ function showToast(message) {
   }, 2200);
 }
 
+// Alternância e Gerenciamento Robusto de Tela Cheia Imersiva
+async function toggleFullscreen(enterOnly = false) {
+  try {
+    const isFs = !!(
+      document.fullscreenElement ||
+      document.webkitFullscreenElement ||
+      document.mozFullScreenElement ||
+      document.msFullscreenElement
+    );
+
+    if (!isFs) {
+      const container = el('game-container') || document.documentElement;
+      const req = container.requestFullscreen ||
+                  container.webkitRequestFullscreen ||
+                  container.mozRequestFullScreen ||
+                  container.msRequestFullscreen ||
+                  document.documentElement.requestFullscreen ||
+                  document.documentElement.webkitRequestFullscreen;
+
+      if (req) {
+        try {
+          await req.call(container, { navigationUI: 'hide' });
+        } catch (e1) {
+          try {
+            await req.call(container);
+          } catch (e2) {
+            if (document.documentElement.requestFullscreen) {
+              await document.documentElement.requestFullscreen({ navigationUI: 'hide' }).catch(() => {});
+            }
+          }
+        }
+      }
+
+      if (screen.orientation && screen.orientation.lock) {
+        screen.orientation.lock('landscape').catch(() => {});
+      }
+    } else if (!enterOnly) {
+      const exit = document.exitFullscreen ||
+                   document.webkitExitFullscreen ||
+                   document.mozCancelFullScreen ||
+                   document.msExitFullscreen;
+      if (exit) {
+        await exit.call(document);
+      }
+    }
+  } catch (err) {
+    console.warn('[Zelda Web] Aviso tela cheia:', err);
+  }
+}
+
+document.addEventListener('fullscreenchange', () => {
+  const isFs = !!(document.fullscreenElement || document.webkitFullscreenElement);
+  const btnFs = el('btn-fullscreen');
+  if (btnFs) {
+    btnFs.textContent = isFs ? '🗗' : '⛶';
+    btnFs.title = isFs ? 'Sair da Tela Cheia' : 'Tela Cheia';
+  }
+  if (canvas) {
+    canvas.style.paddingLeft = '0px';
+    canvas.style.paddingRight = '0px';
+    canvas.style.paddingTop = '0px';
+    canvas.style.paddingBottom = '0px';
+  }
+});
+
+document.addEventListener('webkitfullscreenchange', () => {
+  if (canvas) {
+    canvas.style.paddingLeft = '0px';
+    canvas.style.paddingRight = '0px';
+    canvas.style.paddingTop = '0px';
+    canvas.style.paddingBottom = '0px';
+  }
+});
+
+window.addEventListener('keydown', (e) => {
+  if (e.key === 'F11' || (e.altKey && e.key === 'Enter')) {
+    e.preventDefault();
+    toggleFullscreen();
+  }
+});
+
 // Configuração do zelda3.ini com suporte a PT-BR, Widescreen 16:9 Nativo, HD Mode 7 e Cheats
 function generateIni() {
   return [
@@ -392,11 +473,19 @@ async function loadAssets() {
     statusText.textContent = 'Pronto para jogar!';
     btnPlay.style.display = 'inline-block';
 
-    btnPlay.addEventListener('click', () => {
+    const onPlay = async (e) => {
+      if (e) e.preventDefault();
       startOverlay.style.display = 'none';
       unlockAudio();
+      // Em dispositivos móveis ou telas de toque, ativa tela cheia imediatamente no gesto do usuário
+      if (window.innerWidth <= 1024 || /Android|iPhone|iPad|iPod|Mobile/i.test(navigator.userAgent)) {
+        toggleFullscreen(true);
+      }
       bootGame(allBytes);
-    }, { once: true });
+    };
+
+    btnPlay.addEventListener('click', onPlay, { once: true });
+    btnPlay.addEventListener('touchend', onPlay, { once: true });
 
   } catch (err) {
     statusText.textContent = `Erro ao carregar: ${err.message}`;
@@ -775,16 +864,52 @@ function initGameMenu() {
   });
 
   // Tela Cheia
-  el('btn-fullscreen')?.addEventListener('click', () => {
-    if (!document.fullscreenElement && !document.webkitFullscreenElement) {
-      const docEl = document.documentElement;
-      if (docEl.requestFullscreen) docEl.requestFullscreen();
-      else if (docEl.webkitRequestFullscreen) docEl.webkitRequestFullscreen();
-    } else {
-      if (document.exitFullscreen) document.exitFullscreen();
-      else if (document.webkitExitFullscreen) document.webkitExitFullscreen();
+  const btnFs = el('btn-fullscreen');
+  const handleFsToggle = (e) => {
+    if (e) {
+      e.preventDefault();
+      e.stopPropagation();
+    }
+    toggleFullscreen();
+  };
+  btnFs?.addEventListener('click', handleFsToggle);
+  btnFs?.addEventListener('touchend', handleFsToggle);
+
+  // Revelar barra superior no modo paisagem de forma intuitiva
+  const topBar = el('top-bar');
+  const topBarTrigger = el('top-bar-trigger');
+  let topBarTimeout = null;
+
+  function showTopBarBriefly() {
+    if (!topBar) return;
+    topBar.classList.add('bar-visible');
+    clearTimeout(topBarTimeout);
+    topBarTimeout = setTimeout(() => {
+      if (!gameMenu || gameMenu.classList.contains('menu-hidden')) {
+        topBar.classList.remove('bar-visible');
+      }
+    }, 3500);
+  }
+
+  topBarTrigger?.addEventListener('touchstart', showTopBarBriefly, { passive: true });
+  topBarTrigger?.addEventListener('click', showTopBarBriefly);
+  topBarTrigger?.addEventListener('mousemove', showTopBarBriefly);
+  topBar?.addEventListener('mouseenter', () => {
+    clearTimeout(topBarTimeout);
+    topBar.classList.add('bar-visible');
+  });
+  topBar?.addEventListener('mouseleave', () => {
+    if (!gameMenu || gameMenu.classList.contains('menu-hidden')) {
+      topBar.classList.remove('bar-visible');
     }
   });
+
+  const menuObserver = new MutationObserver(() => {
+    if (gameMenu && !gameMenu.classList.contains('menu-hidden')) {
+      topBar?.classList.add('bar-visible');
+    }
+  });
+  if (gameMenu) menuObserver.observe(gameMenu, { attributes: true, attributeFilter: ['class'] });
 
   // Alternar Controles
   const touchControls = el('touch-controls');
@@ -1069,6 +1194,7 @@ if (document.readyState === 'loading') {
 if ('serviceWorker' in navigator) {
   window.addEventListener('load', () => {
     navigator.serviceWorker.register('./sw.js').then((reg) => {
+      reg.update();
       console.log('[PWA] Service Worker registrado com sucesso:', reg.scope);
     }).catch((err) => {
       console.warn('[PWA] Falha ao registrar Service Worker:', err);

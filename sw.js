@@ -1,4 +1,4 @@
-const CACHE_NAME = 'zelda-web-v11';
+const CACHE_NAME = 'zelda-web-v12';
 
 self.addEventListener('install', (event) => {
   self.skipWaiting();

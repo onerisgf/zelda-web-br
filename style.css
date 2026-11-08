@@ -32,13 +32,75 @@ html, body {
 
 #game-container {
   position: relative;
-  width: 100%;
-  height: 100%;
+  width: 100vw;
+  height: 100vh;
   display: flex;
   justify-content: center;
   align-items: center;
   background: #000;
   overflow: hidden;
+  margin: 0;
+  padding: 0;
+}
+
+/* Suporte Completo e Imersivo à Fullscreen API (Documento ou Game Container) */
+:fullscreen,
+:-webkit-full-screen,
+:-moz-full-screen {
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #000 !important;
+  overflow: hidden !important;
+}
+
+:fullscreen body,
+:-webkit-full-screen body,
+:-moz-full-screen body {
+  width: 100vw !important;
+  height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #000 !important;
+  overflow: hidden !important;
+}
+
+:fullscreen #game-container,
+:-webkit-full-screen #game-container,
+:-moz-full-screen #game-container,
+#game-container:fullscreen,
+#game-container:-webkit-full-screen {
+  position: fixed !important;
+  top: 0 !important;
+  left: 0 !important;
+  right: 0 !important;
+  bottom: 0 !important;
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  margin: 0 !important;
+  padding: 0 !important;
+  background: #000 !important;
+  overflow: hidden !important;
+  z-index: 1 !important;
+}
+
+:fullscreen canvas#canvas,
+:-webkit-full-screen canvas#canvas,
+:-moz-full-screen canvas#canvas,
+#game-container:fullscreen canvas#canvas,
+#game-container:-webkit-full-screen canvas#canvas {
+  width: 100vw !important;
+  height: 100vh !important;
+  max-width: 100vw !important;
+  max-height: 100vh !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
+  aspect-ratio: unset !important;
+  object-fit: fill !important;
 }
 
 /* Base Canvas Sizing - Estica e preenche toda a tela no Android Landscape (Anexo 2) */
@@ -47,6 +109,9 @@ canvas#canvas {
   height: 100vh !important;
   max-width: 100vw !important;
   max-height: 100vh !important;
+  padding: 0 !important;
+  margin: 0 !important;
+  border: none !important;
   object-fit: fill !important;
   image-rendering: pixelated;
   image-rendering: crisp-edges;
@@ -416,6 +481,18 @@ canvas.filter-omniscale {
   transform: translateX(-50%) translateY(0);
 }
 
+/* Gatilho de Toque no Topo para Revelar Barra no Modo Paisagem */
+#top-bar-trigger {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 44px;
+  z-index: 55;
+  pointer-events: auto;
+  background: transparent;
+}
+
 /* Barra Superior */
 #top-bar {
   position: absolute;
@@ -598,6 +675,16 @@ canvas.filter-omniscale {
    Game preenchendo toda a horizontal (100vw) e botões espaçados
    ========================================================== */
 @media (orientation: portrait) {
+  #top-bar-trigger {
+    display: none !important;
+  }
+
+  #top-bar {
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: translateY(0) !important;
+  }
+
   #game-container {
     display: flex;
     flex-direction: column;
@@ -857,8 +944,28 @@ canvas.filter-omniscale {
     height: 100vh !important;
     max-width: 100vw !important;
     max-height: 100vh !important;
+    padding: 0 !important;
+    margin: 0 !important;
+    border: none !important;
     aspect-ratio: unset !important;
     object-fit: fill !important;
+  }
+
+  /* Oculta a barra superior no modo deitado para tela cheia total sem obstruir a tela (idêntico ao Anexo 2) */
+  #top-bar {
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(-100%);
+    transition: opacity 0.25s ease, transform 0.25s ease;
+  }
+
+  /* Revela a barra superior ao tocar no topo, hover ou quando o menu estiver aberto */
+  #top-bar.bar-visible,
+  #top-bar:hover,
+  #game-container.show-top-bar #top-bar {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
   }
 
   #touch-controls {
