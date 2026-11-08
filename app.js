@@ -156,6 +156,17 @@ const KEY_MAP = {
 // Garante 100% de persistência em celulares Android, iOS, PWA e PCs
 // =========================================================================
 
+function uint8ToBase64(bytes) {
+  let binary = '';
+  const chunkSize = 8192;
+  const len = bytes.length;
+  for (let i = 0; i < len; i += chunkSize) {
+    const chunk = bytes.subarray(i, Math.min(i + chunkSize, len));
+    binary += String.fromCharCode.apply(null, chunk);
+  }
+  return btoa(binary);
+}
+
 function persistAllSaves(toastMessage = null) {
   if (!zeldaModule || !zeldaModule.FS) return;
   try {
@@ -168,17 +179,16 @@ function persistAllSaves(toastMessage = null) {
     // 2. Backup síncrono e imediato no localStorage (à prova de fechamento súbito no Android)
     const filesToBackup = ['/saves/sram.dat', '/saves/save0.sav', '/saves/save1.sav'];
     for (const filePath of filesToBackup) {
-      if (zeldaModule.FS.analyzePath(filePath).exists) {
-        const bytes = zeldaModule.FS.readFile(filePath);
-        if (bytes && bytes.length > 0) {
-          const key = 'zelda_backup_' + filePath.replace('/saves/', '');
-          let binary = '';
-          const len = bytes.byteLength;
-          for (let i = 0; i < len; i++) {
-            binary += String.fromCharCode(bytes[i]);
+      try {
+        if (zeldaModule.FS.analyzePath(filePath).exists) {
+          const bytes = zeldaModule.FS.readFile(filePath);
+          if (bytes && bytes.length > 0) {
+            const key = 'zelda_backup_' + filePath.replace('/saves/', '');
+            localStorage.setItem(key, uint8ToBase64(bytes));
           }
-          localStorage.setItem(key, btoa(binary));
         }
+      } catch (innerErr) {
+        console.warn('[Save] Erro ao gravar no localStorage:', filePath, innerErr);
       }
     }
     if (toastMessage) showToast(toastMessage);
@@ -189,27 +199,26 @@ function persistAllSaves(toastMessage = null) {
 }
 
 function executeQuickSave() {
-  if (!zeldaModule) return;
+  if (!zeldaModule || !zeldaModule.FS) return;
 
-  // Dispara ShiftLeft + F1 e F2 no motor nativo
-  simulateKeyEvent('keydown', 'ShiftLeft', { shiftKey: true });
-  simulateKeyEvent('keydown', 'F1', { shiftKey: true });
+  if (canvas) {
+    try { canvas.focus(); } catch (e) {}
+  }
+
+  // Dispara APENAS F2 (Slot 0 de Save) sem modificadores conflitantes
   simulateKeyEvent('keydown', 'F2');
-
   setTimeout(() => {
     simulateKeyEvent('keyup', 'F2');
-    simulateKeyEvent('keyup', 'F1', { shiftKey: true });
-    simulateKeyEvent('keyup', 'ShiftLeft');
-  }, 150);
+  }, 120);
 
-  // Aguarda o motor gravar o estado e persiste no IndexedDB + LocalStorage
+  // Aguarda o motor gravar o estado e sincroniza no IndexedDB + LocalStorage
   setTimeout(() => {
-    persistAllSaves('💾 Estado Rápido Salvo no Navegador!');
+    persistAllSaves('💾 Estado Rápido Salvo com Sucesso!');
   }, 350);
 }
 
 function executeQuickLoad() {
-  if (!zeldaModule) return;
+  if (!zeldaModule || !zeldaModule.FS) return;
 
   // Garante que se o save0.sav estiver no localStorage e não no FS, seja restaurado
   try {
@@ -219,14 +228,27 @@ function executeQuickLoad() {
       const bytes = new Uint8Array(binary.length);
       for (let i = 0; i < binary.length; i++) bytes[i] = binary.charCodeAt(i);
       zeldaModule.FS.writeFile('/saves/save0.sav', bytes);
+      console.log('[Load] save0.sav restaurado do backup do localStorage antes de carregar.');
     }
-  } catch (e) {}
+  } catch (e) {
+    console.warn('[Load] Erro ao restaurar save0.sav do localStorage:', e);
+  }
 
-  // Dispara F1 (configurado como Load no KeyMap)
+  const saveExists = zeldaModule.FS.analyzePath('/saves/save0.sav').exists;
+  if (!saveExists) {
+    showToast('⚠️ Nenhum estado rápido salvo ainda!');
+    return;
+  }
+
+  if (canvas) {
+    try { canvas.focus(); } catch (e) {}
+  }
+
+  // Dispara APENAS F1 (Slot 0 de Load)
   simulateKeyEvent('keydown', 'F1');
   setTimeout(() => {
     simulateKeyEvent('keyup', 'F1');
-    showToast('📂 Estado Rápido Carregado!');
+    showToast('📂 Estado Rápido Carregado com Sucesso!');
   }, 120);
 }
 
@@ -296,14 +318,23 @@ function simulateKeyEvent(type, keyName, modifiers = {}) {
     code: info.code,
     keyCode: info.keyCode,
     which: info.keyCode,
-    bubbles: true,
+    charCode: type === 'keypress' ? info.keyCode : 0,
+    bubbles: false,
     cancelable: true,
+    composed: true,
     ctrlKey: !!modifiers.ctrlKey,
     shiftKey: !!modifiers.shiftKey,
-    altKey: !!modifiers.altKey
+    altKey: !!modifiers.altKey,
+    metaKey: false
   };
 
   const evt = new KeyboardEvent(type, eventInit);
+  try {
+    Object.defineProperty(evt, 'keyCode', { get: () => info.keyCode, configurable: true });
+    Object.defineProperty(evt, 'which', { get: () => info.keyCode, configurable: true });
+    Object.defineProperty(evt, 'charCode', { get: () => (type === 'keypress' ? info.keyCode : 0), configurable: true });
+  } catch (e) {}
+
   window.dispatchEvent(evt);
   document.dispatchEvent(evt);
   if (canvas) canvas.dispatchEvent(evt);
@@ -444,8 +475,20 @@ async function bootGame(assetBytes) {
 
     preloadChapters(mod);
 
-    // Auto-sync periódico suave a cada 2 segundos no IndexedDB e LocalStorage
-    setInterval(() => persistAllSaves(), 2000);
+    // Auto-sync suave periódico a cada 3s no IndexedDB e backup imediato de sram.dat
+    setInterval(() => {
+      if (!mod || !mod.FS) return;
+      try {
+        mod.FS.syncfs(false, () => {});
+        const sramPath = '/saves/sram.dat';
+        if (mod.FS.analyzePath(sramPath).exists) {
+          const bytes = mod.FS.readFile(sramPath);
+          if (bytes && bytes.length > 0) {
+            localStorage.setItem('zelda_backup_sram.dat', uint8ToBase64(bytes));
+          }
+        }
+      } catch (e) {}
+    }, 3000);
 
     // Sincronizar imediatamente ao alternar aba, minimizar app no celular ou fechar
     document.addEventListener('visibilitychange', () => {
