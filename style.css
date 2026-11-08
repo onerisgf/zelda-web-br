@@ -131,33 +131,15 @@ canvas.filter-omniscale {
 
 
 /* ==========================================================
-   Backdrop e Layout do Menu Responsivo (Mobile Horizontal/Landscape)
+   Menu Zelda Web Flutuante com Opacidade (Estilo Moon Pearl / Translúcido)
    ========================================================== */
-.game-menu-backdrop {
-  position: fixed;
-  top: 0; left: 0; right: 0; bottom: 0;
-  background: rgba(0, 0, 0, 0.65);
-  backdrop-filter: blur(4px);
-  -webkit-backdrop-filter: blur(4px);
-  z-index: 180;
-  opacity: 1;
-  transition: opacity 0.2s ease, visibility 0.2s ease;
-  pointer-events: auto;
-}
-
-.game-menu-backdrop.menu-hidden {
-  opacity: 0;
-  visibility: hidden;
-  pointer-events: none;
-}
-
 .game-menu-container {
-  position: fixed;
-  top: 50px;
+  position: absolute;
+  top: 52px;
   left: 20px;
-  width: 330px;
+  width: 310px;
   max-width: calc(100% - 40px);
-  z-index: 200;
+  z-index: 100;
   pointer-events: auto;
   transition: opacity 0.22s ease, transform 0.22s ease, visibility 0.22s ease;
 }
@@ -165,113 +147,142 @@ canvas.filter-omniscale {
 .game-menu-container.menu-hidden {
   opacity: 0;
   visibility: hidden;
-  transform: translateY(-12px);
+  transform: translateY(-10px);
   pointer-events: none;
 }
 
+@media (max-width: 600px) and (orientation: portrait) {
+  .game-menu-container {
+    top: 50px;
+    left: 16px;
+    right: 16px;
+    width: auto;
+    max-width: 340px;
+    margin: 0 auto;
+  }
+}
+
 .game-menu-panel {
-  background: rgba(16, 20, 26, 0.96);
-  border: 1px solid rgba(243, 223, 109, 0.35);
-  border-radius: 16px;
-  padding: 10px 14px 14px 14px;
-  box-shadow: 0 10px 40px rgba(0, 0, 0, 0.85);
-  max-height: 80vh;
+  background: transparent;
+  border-radius: 18px;
+  padding: 0;
+  box-shadow: none;
+  max-height: calc(100vh - 60px);
   display: flex;
   flex-direction: column;
   overflow-y: auto;
   -webkit-overflow-scrolling: touch;
   touch-action: pan-y;
   overscroll-behavior: contain;
+  scrollbar-width: thin;
+  scrollbar-color: rgba(255, 255, 255, 0.2) transparent;
 }
 
-.menu-header {
+/* Abas estilo cápsula no topo */
+.game-tabs {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  padding-bottom: 8px;
+  background: transparent;
+  padding: 0;
   margin-bottom: 8px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  gap: 4px;
+  width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+.game-tabs::-webkit-scrollbar {
+  display: none;
 }
 
-.menu-title {
-  font-size: 13.5px;
-  font-weight: 700;
-  color: #f8fafc;
-  display: flex;
-  align-items: center;
-}
-
-.menu-close-btn {
-  background: rgba(255, 255, 255, 0.15);
-  border: 1px solid rgba(255, 255, 255, 0.25);
-  color: #fff;
-  border-radius: 50%;
-  width: 28px;
-  height: 28px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-size: 14px;
-  font-weight: bold;
+.game-tab {
+  flex: 1 0 auto;
+  background: var(--tab-bg);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  color: #cbd5e1;
+  padding: 6px 9px;
+  font-size: 12px;
+  font-weight: 500;
+  border-radius: 14px;
   cursor: pointer;
-  transition: background 0.15s;
+  text-align: center;
+  transition: all 0.15s ease;
+  white-space: nowrap;
+  -webkit-tap-highlight-color: transparent;
 }
 
-.menu-close-btn:active {
-  background: rgba(239, 68, 68, 0.6);
+.game-tab.active {
+  background: var(--tab-gold);
+  border-color: var(--tab-border);
+  color: #fff;
+  font-weight: 600;
+  box-shadow: 0 2px 8px rgba(0, 0, 0, 0.4);
 }
 
-/* Otimização Específica para Celular/Tablet na Horizontal (Landscape / Tela Deitada) */
-@media (orientation: landscape) and (max-height: 550px) {
+.game-tab-content {
+  display: none;
+  flex-direction: column;
+}
+
+.game-tab-content.active {
+  display: flex;
+}
+
+.game-section-title {
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.8px;
+  color: #94a3b8;
+  margin: 10px 4px 5px 4px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.8);
+}
+
+/* Adaptação Otimizada para Celular Deitado (Android Landscape / Baixa Altura) */
+@media (orientation: landscape) and (max-height: 520px) {
   .game-menu-container {
-    top: 6px;
-    left: 50%;
-    transform: translateX(-50%);
-    width: min(640px, 96vw);
-    max-width: 96vw;
-  }
-  .game-menu-container.menu-hidden {
-    transform: translate(-50%, -12px);
+    top: 40px;
+    left: 14px;
+    width: 275px;
+    max-width: calc(100vw - 28px);
   }
   .game-menu-panel {
-    max-height: calc(100vh - 12px);
-    padding: 8px 12px 10px 12px;
+    max-height: calc(100vh - 46px);
+    padding-right: 3px;
   }
   .game-tabs {
-    margin-bottom: 6px;
-    gap: 4px;
+    margin-bottom: 5px;
+    gap: 3px;
   }
   .game-tab {
-    padding: 5px 8px;
-    font-size: 11.5px;
-  }
-  .game-tab-content.active {
-    display: grid !important;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
-  }
-  .game-section-title {
-    grid-column: 1 / -1;
-    margin: 4px 2px 2px 2px;
-    font-size: 10.5px;
-  }
-  .game-option {
-    padding: 7px 10px;
-    margin-bottom: 0;
-    gap: 8px;
+    padding: 4px 7px;
+    font-size: 11px;
     border-radius: 10px;
   }
-  .option-label {
-    font-size: 12.5px;
+  .game-section-title {
+    font-size: 9.5px;
+    margin: 5px 3px 2px 3px;
   }
-  #game-chapters-list {
-    grid-column: 1 / -1;
-    display: grid;
-    grid-template-columns: 1fr 1fr;
-    gap: 6px;
+  .game-option {
+    padding: 6px 11px;
+    margin-bottom: 3.5px;
+    border-radius: 11px;
+    gap: 10px;
+  }
+  .option-label {
+    font-size: 12px;
+  }
+  .radio-indicator {
+    width: 16px;
+    height: 16px;
+  }
+  .game-option.active .radio-indicator::after {
+    top: 2px;
+    left: 2px;
+    right: 2px;
+    bottom: 2px;
   }
 }
-
 
 /* Opções estilo botão arredondado preto com transparência (Idêntico ao Zelda Web) */
 .game-option {
