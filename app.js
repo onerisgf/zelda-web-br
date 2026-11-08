@@ -34,10 +34,13 @@ function showToast(message) {
 
 // Configuração do zelda3.ini com suporte a PT-BR, Widescreen 16:9, HD Mode 7 e Cheats
 function generateIni() {
+  const savedAspect = localStorage.getItem('zelda_aspect') || '16:9';
+  const aspectConfig = savedAspect === '4:3' ? '4:3' : (savedAspect === '16:10' ? '16:10' : '16:9');
+
   return [
     '[General]',
     'Autosave = 1',
-    'ExtendedAspectRatio = 16:9',
+    `ExtendedAspectRatio = ${aspectConfig}`,
     'DisableFrameDelay = 0',
     'Language = pt',
     '',
@@ -86,12 +89,15 @@ function generateIni() {
     'Load = F1, F3, F4, F5',
     'Save = F2, Shift+F1, Shift+F2, Shift+F3',
     'LoadRef = 1,2,3,4,5,6,7,8,9,0,-,=,Backspace',
+    'ToggleRenderer = F11',
     ''
   ].join('\n');
 }
 
 // Mapeamento de Teclas (WASD para Movimento | X=I, Y=J, B=K, A=L, L=Q, R=O)
 const KEY_MAP = {
+  // Toggle Renderer (Widescreen 16:9 <-> 4:3)
+  'F11':        { key: 'F11',        code: 'F11',        keyCode: 122 },
   // Movimento
   'w':          { key: 'w',          code: 'KeyW',       keyCode: 87 }, // Cima
   'W':          { key: 'w',          code: 'KeyW',       keyCode: 87 },
@@ -558,20 +564,34 @@ function applyShader(shaderName) {
   }
 }
 
-function applyAspect(ratio) {
+let isNewRendererActive = true;
+
+function applyAspect(ratio, notify = true) {
   canvas.classList.remove('aspect-16-9', 'aspect-4-3', 'aspect-16-10', 'aspect-fill', 'aspect-18-9');
+  localStorage.setItem('zelda_aspect', ratio);
+
   if (ratio === '16:9') {
     canvas.classList.add('aspect-16-9');
-    showToast('📐 Proporção: Widescreen 16:9');
+    if (!isNewRendererActive) {
+      simulateKeyEvent('keydown', 'F11');
+      setTimeout(() => simulateKeyEvent('keyup', 'F11'), 50);
+      isNewRendererActive = true;
+    }
+    if (notify) showToast('📐 Proporção: Widescreen 16:9');
   } else if (ratio === '4:3') {
     canvas.classList.add('aspect-4-3');
-    showToast('📐 Proporção: Clássica 4:3');
+    if (isNewRendererActive) {
+      simulateKeyEvent('keydown', 'F11');
+      setTimeout(() => simulateKeyEvent('keyup', 'F11'), 50);
+      isNewRendererActive = false;
+    }
+    if (notify) showToast('📐 Proporção: Clássica 4:3');
   } else if (ratio === '16:10') {
     canvas.classList.add('aspect-16-10');
-    showToast('📐 Proporção: 16:10');
+    if (notify) showToast('📐 Proporção: 16:10');
   } else if (ratio === 'fill') {
     canvas.classList.add('aspect-fill');
-    showToast('📐 Proporção: Preencher Tela Cheia');
+    if (notify) showToast('📐 Proporção: Preencher Tela Cheia');
   }
 }
 
@@ -643,12 +663,19 @@ function initGameMenu() {
     });
   });
 
+  // Restaura proporção salva ou inicia em Widescreen 16:9 por padrão sem esticar
+  const savedAspect = localStorage.getItem('zelda_aspect') || '16:9';
+  document.querySelectorAll('[data-aspect]').forEach(opt => {
+    opt.classList.toggle('active', opt.dataset.aspect === savedAspect);
+  });
+  applyAspect(savedAspect, false);
+
   // Seleção de Aspect Ratio
   document.querySelectorAll('[data-aspect]').forEach(opt => {
     opt.addEventListener('click', () => {
       document.querySelectorAll('[data-aspect]').forEach(o => o.classList.remove('active'));
       opt.classList.add('active');
-      applyAspect(opt.dataset.aspect);
+      applyAspect(opt.dataset.aspect, true);
     });
   });
 
