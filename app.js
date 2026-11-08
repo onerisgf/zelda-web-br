@@ -184,13 +184,13 @@ async function loadAssets() {
 
   try {
     try {
-      const capRes = await fetch('chapters.json?v=' + Date.now(), { cache: 'no-store' });
+      const capRes = await fetch('chapters.json?v=' + Date.now());
       if (capRes.ok) chaptersData = await capRes.json();
     } catch (e) {
       console.warn('Não foi possível carregar chapters.json:', e);
     }
 
-    const response = await fetch('assets.dat?v=' + Date.now(), { cache: 'no-store' });
+    const response = await fetch('assets.dat?v=' + Date.now());
     if (!response.ok) {
       throw new Error(`Falha ao obter assets.dat (HTTP ${response.status})`);
     }
@@ -380,22 +380,37 @@ function setSpeed(multiplier) {
 }
 
 function initGameMenu() {
-  // Alternar visibilidade do menu ao tocar no botão de Menu
-  el('btn-menu-toggle')?.addEventListener('click', (e) => {
+  const menuBackdrop = el('menu-backdrop');
+  const btnClose = el('btn-menu-close');
+  const btnToggle = el('btn-menu-toggle');
+
+  const toggleMenu = () => {
+    const isHidden = gameMenu.classList.toggle('menu-hidden');
+    if (menuBackdrop) menuBackdrop.classList.toggle('menu-hidden', isHidden);
+  };
+
+  const closeMenu = () => {
+    gameMenu.classList.add('menu-hidden');
+    if (menuBackdrop) menuBackdrop.classList.add('menu-hidden');
+  };
+
+  btnToggle?.addEventListener('click', (e) => {
     e.stopPropagation();
-    gameMenu.classList.toggle('menu-hidden');
+    toggleMenu();
   });
 
-  // Impedir que cliques dentro do menu o fechem
-  gameMenu.querySelector('.game-menu-panel')?.addEventListener('click', (e) => {
+  btnClose?.addEventListener('click', (e) => {
     e.stopPropagation();
+    closeMenu();
   });
 
-  // Fechar o menu ao tocar no canvas do jogo
-  canvas?.addEventListener('click', () => {
-    if (!gameMenu.classList.contains('menu-hidden')) {
-      gameMenu.classList.add('menu-hidden');
-    }
+  menuBackdrop?.addEventListener('click', (e) => {
+    e.stopPropagation();
+    closeMenu();
+  });
+
+  gameMenu?.addEventListener('click', (e) => {
+    e.stopPropagation();
   });
 
   // Alternar abas do menu (Cheats, Image, Chapters, Saves)
