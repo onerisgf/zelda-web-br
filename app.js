@@ -19,6 +19,18 @@ let audioContextUnlocked = false;
 let currentSpeed = 1;
 let isTurboActive = false;
 let chaptersData = [];
+let toastTimer = null;
+
+function showToast(message) {
+  const toast = el('game-toast');
+  if (!toast) return;
+  toast.textContent = message;
+  toast.classList.add('visible');
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => {
+    toast.classList.remove('visible');
+  }, 2200);
+}
 
 // Configuração do zelda3.ini com suporte a PT-BR, Widescreen 16:9, HD Mode 7 e Cheats
 function generateIni() {
@@ -71,8 +83,8 @@ function generateIni() {
     'Fullscreen = Alt+Return',
     'Reset = Ctrl+r',
     'Pause = Shift+p',
-    'Load = F1, F2, F3, F4, F5',
-    'Save = Shift+F1, Shift+F2, Shift+F3, Shift+F4, Shift+F5',
+    'Load = F1, F3, F4, F5',
+    'Save = F2, Shift+F1, Shift+F2, Shift+F3',
     'LoadRef = 1,2,3,4,5,6,7,8,9,0,-,=,Backspace',
     ''
   ].join('\n');
@@ -110,11 +122,18 @@ const KEY_MAP = {
 
   // Sistema / Menus
   'Shift':      { key: 'Shift',      code: 'ShiftRight', keyCode: 16 }, // Select
+  'ShiftLeft':  { key: 'Shift',      code: 'ShiftLeft',  keyCode: 16 },
+  'ShiftRight': { key: 'Shift',      code: 'ShiftRight', keyCode: 16 },
   'Enter':      { key: 'Enter',      code: 'Enter',      keyCode: 13 }, // Start
   'Tab':        { key: 'Tab',        code: 'Tab',        keyCode: 9 },  // Turbo / Acelerar
   'F6':         { key: 'F6',         code: 'F6',         keyCode: 117 }, // Cheat: Vida
   'F7':         { key: 'F7',         code: 'F7',         keyCode: 118 }, // Cheat: Chaves
   'F1':         { key: 'F1',         code: 'F1',         keyCode: 112 },
+  'F2':         { key: 'F2',         code: 'F2',         keyCode: 113 },
+  'F3':         { key: 'F3',         code: 'F3',         keyCode: 114 },
+  'F4':         { key: 'F4',         code: 'F4',         keyCode: 115 },
+  'F5':         { key: 'F5',         code: 'F5',         keyCode: 116 },
+  'F8':         { key: 'F8',         code: 'F8',         keyCode: 119 },
   '1':          { key: '1',          code: 'Digit1',     keyCode: 49 },
   '2':          { key: '2',          code: 'Digit2',     keyCode: 50 },
   '3':          { key: '3',          code: 'Digit3',     keyCode: 51 },
@@ -288,27 +307,44 @@ async function bootGame(assetBytes) {
     const syncSaveToIndexedDB = (force = false) => {
       if (!mod || !mod.FS || isSyncing) return;
       try {
-        const savePath = '/saves/sram.dat';
-        if (mod.FS.analyzePath(savePath).exists) {
-          const st = mod.FS.stat(savePath);
-          const mtime = st.mtime instanceof Date ? st.mtime.getTime() : Number(st.mtime);
-          if (force || mtime > lastSaveMtime) {
-            lastSaveMtime = mtime;
-            isSyncing = true;
-            mod.FS.syncfs(false, (err) => {
-              isSyncing = false;
-              if (err) console.warn('[Zelda Web] Erro ao sincronizar save no navegador:', err);
-              else console.log('[Zelda Web] Progresso sincronizado no navegador com sucesso.');
-            });
+        let hasChanges = force;
+        if (!hasChanges) {
+          const filesToCheck = [
+            '/saves/sram.dat',
+            '/saves/save0.sav',
+            '/saves/save1.sav',
+            '/saves/save2.sav',
+            '/saves/save3.sav',
+            '/saves/save4.sav',
+            '/saves/save5.sav'
+          ];
+          for (const p of filesToCheck) {
+            if (mod.FS.analyzePath(p).exists) {
+              const st = mod.FS.stat(p);
+              const mtime = st.mtime instanceof Date ? st.mtime.getTime() : Number(st.mtime);
+              if (mtime > lastSaveMtime) {
+                lastSaveMtime = mtime;
+                hasChanges = true;
+                break;
+              }
+            }
           }
+        }
+        if (hasChanges) {
+          isSyncing = true;
+          mod.FS.syncfs(false, (err) => {
+            isSyncing = false;
+            if (err) console.warn('[Zelda Web] Erro ao sincronizar saves no IndexedDB:', err);
+            else console.log('[Zelda Web] Todos os saves e estados persistidos no IndexedDB com sucesso.');
+          });
         }
       } catch (e) {
         isSyncing = false;
       }
     };
 
-    // Auto-sync a cada 2 segundos se o motor do jogo tiver modificado o save
-    setInterval(() => syncSaveToIndexedDB(false), 2000);
+    // Auto-sync suave a cada 1.5 segundos
+    setInterval(() => syncSaveToIndexedDB(false), 1500);
 
     // Sincronizar imediatamente ao ocultar a aba, alternar app no Android ou fechar
     document.addEventListener('visibilitychange', () => {
@@ -482,31 +518,58 @@ function initGameMenu() {
   el('opt-cheat-life')?.addEventListener('click', () => {
     simulateKeyEvent('keydown', 'F6');
     setTimeout(() => simulateKeyEvent('keyup', 'F6'), 100);
-    alert('❤️ Vida e magia restauradas!');
+    showToast('❤️ Vida e magia restauradas!');
   });
 
   el('opt-cheat-keys')?.addEventListener('click', () => {
     simulateKeyEvent('keydown', 'F7');
     setTimeout(() => simulateKeyEvent('keyup', 'F7'), 100);
-    alert('🔑 Chaves, bombas e rupees no máximo!');
+    showToast('🔑 Chaves, bombas e rupees no máximo!');
   });
 
   el('opt-cheat-walls')?.addEventListener('click', () => {
     simulateKeyEvent('keydown', 'e', { ctrlKey: true });
     setTimeout(() => simulateKeyEvent('keyup', 'e', { ctrlKey: true }), 100);
-    alert('🧱 Modo atravessar paredes alternado!');
+    showToast('🧱 Modo atravessar paredes alternado!');
   });
 
-  // Saves
+  // Saves - Salvar Estado Rápido
   el('opt-save-quick')?.addEventListener('click', () => {
+    if (!zeldaModule) return;
+
+    // Dispara a tecla F2 (configurada como Save no KeyMap) e ShiftLeft + F1
+    simulateKeyEvent('keydown', 'F2');
+    simulateKeyEvent('keydown', 'ShiftLeft');
     simulateKeyEvent('keydown', 'F1', { shiftKey: true });
-    setTimeout(() => simulateKeyEvent('keyup', 'F1', { shiftKey: true }), 100);
-    alert('💾 Estado rápido salvo!');
+
+    setTimeout(() => {
+      simulateKeyEvent('keyup', 'F2');
+      simulateKeyEvent('keyup', 'F1', { shiftKey: true });
+      simulateKeyEvent('keyup', 'ShiftLeft');
+    }, 120);
+
+    // Persiste imediatamente no IndexedDB após o motor gravar o estado
+    setTimeout(() => {
+      if (zeldaModule && zeldaModule.FS) {
+        zeldaModule.FS.syncfs(false, (err) => {
+          if (err) console.warn('[Save State] Erro ao gravar no IndexedDB:', err);
+          else console.log('[Save State] Estado rápido gravado com sucesso no IndexedDB!');
+        });
+      }
+      showToast('💾 Estado rápido salvo com sucesso!');
+    }, 300);
   });
 
+  // Saves - Carregar Estado Rápido
   el('opt-load-quick')?.addEventListener('click', () => {
+    if (!zeldaModule) return;
+
+    // Dispara F1 (configurado como Load no KeyMap)
     simulateKeyEvent('keydown', 'F1');
-    setTimeout(() => simulateKeyEvent('keyup', 'F1'), 100);
+    setTimeout(() => {
+      simulateKeyEvent('keyup', 'F1');
+      showToast('📂 Estado rápido carregado!');
+    }, 120);
   });
 
   el('opt-download-srm')?.addEventListener('click', () => {
